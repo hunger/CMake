@@ -130,6 +130,10 @@ struct cmListFile
                  bool topLevel,
                  cmMakefile *mf);
 
+  bool ParseString(const char* content,
+                   const char* filename,
+                 cmMakefile *mf);
+
   std::vector<cmListFileFunction> Functions;
 };
 
