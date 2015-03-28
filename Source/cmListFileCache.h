@@ -45,11 +45,14 @@ struct cmListFileArgument
     Quoted,
     Bracket
     };
-  cmListFileArgument(): Value(), Delim(Unquoted), Line(0) {}
-  cmListFileArgument(const cmListFileArgument& r)
-    : Value(r.Value), Delim(r.Delim), Line(r.Line) {}
-  cmListFileArgument(const std::string& v, Delimiter d, long line)
-    : Value(v), Delim(d), Line(line) {}
+  cmListFileArgument(): Value(), Delim(Unquoted),
+      Line(0), Column(0) {}
+  cmListFileArgument(const cmListFileArgument& r):
+    Value(r.Value), Delim(r.Delim),
+    Line(r.Line), Column(r.Column) {}
+  cmListFileArgument(const std::string& v, Delimiter d,
+                     long line, long column): Value(v), Delim(d),
+                                 Line(line), Column(column) {}
   bool operator == (const cmListFileArgument& r) const
     {
     return (this->Value == r.Value) && (this->Delim == r.Delim);
@@ -61,6 +64,7 @@ struct cmListFileArgument
   std::string Value;
   Delimiter Delim;
   long Line;
+  long Column;
 };
 
 class cmListFileContext
@@ -100,6 +104,8 @@ bool operator!=(cmListFileContext const& lhs, cmListFileContext const& rhs);
 struct cmListFileFunction: public cmCommandContext
 {
   std::vector<cmListFileArgument> Arguments;
+  long Column;
+  cmListFileFunction(): cmCommandContext(), Column(0) {}
 };
 
 class cmListFileBacktrace

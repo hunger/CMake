@@ -49,19 +49,19 @@ static void cmVariableWatchCommandVariableAccessed(
     newLFF.Arguments.clear();
     newLFF.Arguments.push_back(
       cmListFileArgument(variable, cmListFileArgument::Quoted,
-                         9999));
+                         9999, 0));
     newLFF.Arguments.push_back(
       cmListFileArgument(accessString, cmListFileArgument::Quoted,
-                         9999));
+                         9999, 0));
     newLFF.Arguments.push_back(
       cmListFileArgument(newValue?newValue:"", cmListFileArgument::Quoted,
-                         9999));
+                         9999, 0));
     newLFF.Arguments.push_back(
       cmListFileArgument(currentListFile, cmListFileArgument::Quoted,
-                         9999));
+                         9999, 0));
     newLFF.Arguments.push_back(
       cmListFileArgument(stack, cmListFileArgument::Quoted,
-                         9999));
+                         9999, 0));
     newLFF.Name = data->Command;
     newLFF.Line = 9999;
     cmExecutionStatus status;
