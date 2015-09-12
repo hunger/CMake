@@ -16,6 +16,7 @@
 #include "cmQtAutoGenerators.h"
 #include "cmVersion.h"
 #include "cmAlgorithms.h"
+#include "cmServer.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 # include "cmDependsFortran.h" // For -E cmake_copy_f90_mod callback.
@@ -1011,6 +1012,27 @@ int cmcmd::ExecuteCMakeCommand(std::vector<std::string>& args)
         }
       return 0;
       }
+#if defined(HAVE_DAEMON_MODE) && HAVE_DAEMON_MODE
+    else if (args[1] == "daemon")
+      {
+      std::string buildDir;
+      if (args.size() > 3)
+        {
+        return 1;
+        }
+      if (args.size() == 3)
+        {
+        buildDir = args[2];
+        }
+      cmMetadataServer server;
+      server.ServeMetadata(buildDir);
+      return 0;
+#else
+      cmSystemTools::Error("CMake was not built with daemon mode enabled");
+      return 1;
+#endif
+      }
+
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
     // Internal CMake Fortran module support.
