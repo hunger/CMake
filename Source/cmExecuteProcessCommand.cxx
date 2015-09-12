@@ -27,6 +27,17 @@ void cmExecuteProcessCommandAppend(std::vector<char>& output,
                                    const char* data, int length);
 
 // cmExecuteProcessCommand
+cmCommand::ParameterContext
+cmExecuteProcessCommand::GetContextForParameter(const std::vector<std::string>& args, size_t index)
+{
+  (void)args;
+  if (index == 0)
+    {
+      return KeywordParameter;
+    }
+  return NoContext;
+}
+
 bool cmExecuteProcessCommand
 ::InitialPass(std::vector<std::string> const& args, cmExecutionStatus &)
 {

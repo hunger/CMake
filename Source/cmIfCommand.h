@@ -58,6 +58,12 @@ public:
     return new cmIfCommand;
     }
 
+  ParameterContext GetContextForParameter(
+    std::vector<std::string> const& args, size_t index);
+
+  std::vector<std::string> GetKeywords(
+    std::vector<std::string> const& args, size_t index);
+
   /**
    * This overrides the default InvokeInitialPass implementation.
    * It records the arguments before expansion.

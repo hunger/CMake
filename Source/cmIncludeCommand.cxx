@@ -13,6 +13,16 @@
 
 
 // cmIncludeCommand
+cmCommand::ParameterContext cmIncludeCommand::GetContextForParameter(const std::vector<std::string>&,
+                                                                     size_t index)
+{
+  if (index == 0)
+    {
+    return cmCommand::ModuleNameParameter;
+    }
+  return NoContext;
+}
+
 bool cmIncludeCommand
 ::InitialPass(std::vector<std::string> const& args, cmExecutionStatus &)
 {
