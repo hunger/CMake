@@ -124,5 +124,9 @@ bool cmAddSubDirectoryCommand::InitialPass
   this->Makefile->AddSubDirectory(srcPath, binPath,
                                   excludeFromAll, true);
 
+  auto lfc = this->Makefile->GetExecutionContext();
+  lfc.Line = lfc.CloseParenLine + 1;
+  this->Makefile->CreateArbitrarySnapshot(lfc);
+
   return true;
 }
