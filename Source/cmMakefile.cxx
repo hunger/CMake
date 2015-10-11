@@ -399,6 +399,16 @@ cmMakefile::IncludeScope::~IncludeScope()
   this->Makefile->PopFunctionBlockerBarrier(this->ReportError);
 }
 
+void cmMakefile::CreateArbitrarySnapshot(cmListFileContext const& lfc)
+{
+  if (this->GetCMakeInstance()->GetWorkingMode() != cmake::SNAPSHOT_RECORD_MODE)
+    {
+    return;
+    }
+  this->StateSnapshot =
+      this->GetState()->CreateArbitraryPointSnapshot(this->StateSnapshot, lfc);
+}
+
 //----------------------------------------------------------------------------
 void cmMakefile::IncludeScope::EnforceCMP0011()
 {
