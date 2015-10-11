@@ -1528,14 +1528,15 @@ void cmMakefile::InitializeFromParent(cmMakefile* parent)
   this->ImportedTargets = parent->ImportedTargets;
 }
 
-void cmMakefile::PushFunctionScope(std::string const& fileName,
+void cmMakefile::PushFunctionScope(const cmListFileContext& functionContext,
+                                   long functionEndLine,
                                    const cmPolicies::PolicyMap& pm)
 {
   this->StateSnapshot =
       this->GetState()->CreateFunctionCallSnapshot(
         this->StateSnapshot,
         this->ContextStack.back()->Name, this->ContextStack.back()->Line,
-        fileName);
+        functionContext, functionEndLine);
   assert(this->StateSnapshot.IsValid());
 
   this->PushLoopBlockBarrier();
@@ -1566,14 +1567,15 @@ void cmMakefile::PopFunctionScope(bool reportError)
   this->CheckForUnusedVariables();
 }
 
-void cmMakefile::PushMacroScope(std::string const& fileName,
+void cmMakefile::PushMacroScope(const cmListFileContext& macroContext,
+                                long macroEndLine,
                                 const cmPolicies::PolicyMap& pm)
 {
   this->StateSnapshot =
       this->GetState()->CreateMacroCallSnapshot(
         this->StateSnapshot,
         this->ContextStack.back()->Name, this->ContextStack.back()->Line,
-        fileName);
+        macroContext, macroEndLine);
   assert(this->StateSnapshot.IsValid());
 
   this->PushFunctionBlockerBarrier();
@@ -5160,11 +5162,12 @@ AddRequiredTargetCFeature(cmTarget *target, const std::string& feature) const
 
 
 cmMakefile::FunctionPushPop::FunctionPushPop(cmMakefile* mf,
-                                             const std::string& fileName,
-                                             cmPolicies::PolicyMap const& pm)
+                                     const cmListFileContext& functionContext,
+                                     long functionEndLine,
+                                     cmPolicies::PolicyMap const& pm)
   : Makefile(mf), ReportError(true)
 {
-  this->Makefile->PushFunctionScope(fileName, pm);
+  this->Makefile->PushFunctionScope(functionContext, functionEndLine, pm);
 }
 
 cmMakefile::FunctionPushPop::~FunctionPushPop()
@@ -5174,11 +5177,12 @@ cmMakefile::FunctionPushPop::~FunctionPushPop()
 
 
 cmMakefile::MacroPushPop::MacroPushPop(cmMakefile* mf,
-                                       const std::string& fileName,
+                                       const cmListFileContext& macroContext,
+                                       long macroEndLine,
                                        const cmPolicies::PolicyMap& pm)
   : Makefile(mf), ReportError(true)
 {
-  this->Makefile->PushMacroScope(fileName, pm);
+  this->Makefile->PushMacroScope(macroContext, macroEndLine, pm);
 }
 
 cmMakefile::MacroPushPop::~MacroPushPop()

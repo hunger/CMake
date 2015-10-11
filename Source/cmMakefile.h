@@ -661,7 +661,8 @@ public:
   class FunctionPushPop
   {
   public:
-    FunctionPushPop(cmMakefile* mf, std::string const& fileName,
+    FunctionPushPop(cmMakefile* mf, cmListFileContext const& functionContext,
+                    long functionEndLine,
                     cmPolicies::PolicyMap const& pm);
     ~FunctionPushPop();
 
@@ -674,7 +675,8 @@ public:
   class MacroPushPop
   {
   public:
-    MacroPushPop(cmMakefile* mf, std::string const& fileName,
+    MacroPushPop(cmMakefile* mf, const cmListFileContext& macroContext,
+                 long macroEndLine,
                  cmPolicies::PolicyMap const& pm);
     ~MacroPushPop();
 
@@ -684,10 +686,12 @@ public:
     bool ReportError;
   };
 
-  void PushFunctionScope(std::string const& fileName,
+  void PushFunctionScope(const cmListFileContext& functionContext,
+                         long functionEndLine,
                          cmPolicies::PolicyMap const& pm);
   void PopFunctionScope(bool reportError);
-  void PushMacroScope(std::string const& fileName,
+  void PushMacroScope(const cmListFileContext& macroContext,
+                      long macroEndLine,
                       cmPolicies::PolicyMap const& pm);
   void PopMacroScope(bool reportError);
   void PushScope();

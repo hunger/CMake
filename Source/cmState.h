@@ -24,6 +24,7 @@ class cmCommand;
 class cmDefinitions;
 class cmListFileBacktrace;
 class cmCacheManager;
+class cmListFileContext;
 
 class cmState
 {
@@ -198,11 +199,13 @@ public:
   Snapshot CreateFunctionCallSnapshot(Snapshot originSnapshot,
                                       std::string const& entryPointCommand,
                                       long entryPointLine,
-                                      std::string const& fileName);
+                                    const cmListFileContext& functionContext,
+                                      long functionEndLine);
   Snapshot CreateMacroCallSnapshot(Snapshot originSnapshot,
                                    std::string const& entryPointCommand,
                                    long entryPointLine,
-                                   std::string const& fileName);
+                                   const cmListFileContext& macroContext,
+                                   long macroEndLine);
   Snapshot CreateCallStackSnapshot(Snapshot originSnapshot,
                                    std::string const& entryPointCommand,
                                    long entryPointLine,
