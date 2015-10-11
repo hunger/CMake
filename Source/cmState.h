@@ -47,7 +47,8 @@ public:
     CallStackType,
     InlineListFileType,
     PolicyScopeType,
-    VariableScopeType
+    VariableScopeType,
+    ArbitraryPointType
   };
 
   class Directory;
@@ -223,6 +224,8 @@ public:
                                         long entryPointLine,
                                         std::string const& fileName);
   Snapshot CreatePolicyScopeSnapshot(Snapshot originSnapshot);
+  Snapshot CreateArbitraryPointSnapshot(Snapshot originSnapshot,
+                                        cmListFileContext const& context);
   Snapshot Pop(Snapshot originSnapshot);
   void ClearData(Snapshot snapshot);
 
