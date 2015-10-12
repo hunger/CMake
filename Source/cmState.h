@@ -70,6 +70,8 @@ public:
     void SetListFile(std::string const& listfile);
 
     std::string GetExecutionListFile() const;
+    long GetStartingPoint() const;
+    long GetEndingPoint() const;
 
     std::vector<Snapshot> GetChildren();
     std::string GetEntryPointCommand() const;
@@ -338,6 +340,8 @@ public:
   unsigned int GetCacheMajorVersion() const;
   unsigned int GetCacheMinorVersion() const;
 
+  std::map<cmListFileContext, std::vector<cmState::Snapshot> > TraceSnapshots() const;
+
 private:
   friend class cmake;
   void AddCacheEntry(const std::string& key, const char* value,
@@ -357,6 +361,9 @@ private:
   cmLinkedTree<PolicyStackEntry> PolicyStack;
   cmLinkedTree<SnapshotDataType> SnapshotData;
   cmLinkedTree<cmDefinitions> VarTree;
+
+  std::map<cmListFileContext, std::vector<cmState::Snapshot> >
+  Traverse(int depth, PositionType it) const;
 
   std::vector<std::string> SourceDirectoryComponents;
   std::vector<std::string> BinaryDirectoryComponents;
