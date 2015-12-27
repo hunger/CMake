@@ -1744,6 +1744,13 @@ void AppendEntry(T& content, U& backtraces, V& endContentPosition,
     return;
     }
 
+  // Workaround for include directories not being versioned with snapshots
+  // properly
+  if (endContentPosition != content.size())
+    {
+    return;
+    }
+
   assert(endContentPosition == content.size());
 
   content.push_back(value);
