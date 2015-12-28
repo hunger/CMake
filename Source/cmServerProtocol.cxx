@@ -19,6 +19,7 @@
 #include "cmMakefile.h"
 #include "cmSourceFile.h"
 #include "cmServerDiff.h"
+#include "cmServerParser.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 # include "cm_jsoncpp_value.h"
@@ -84,6 +85,12 @@ void cmServerProtocol::processRequest(const std::string& json)
       this->ProcessContent(
         value["file_path"].asString(),
         value["file_line"].asInt(), diff, value["matcher"].asString());
+      }
+    if (value["type"] == "parse")
+      {
+      auto diff = cmServerDiff::GetDiff(value);
+      this->ProcessParse(
+            value["file_path"].asString(), diff);
       }
     }
 }
@@ -630,4 +637,62 @@ cmServerProtocol::GetSnapshotContext(std::string filePath, long fileLine)
 
   long startingPoint = it->first.Line;
   return std::make_pair(snp, startingPoint);
+}
+
+void getUnreachable(Json::Value& unreachable,
+                    DifferentialFileContent const& diff,
+                    std::map<long, long> const& nx)
+{
+  auto& chunks = diff.Chunks;
+
+  auto chunkIt = chunks.begin();
+
+  for (auto it = nx.begin(); it != nx.end(); ++it)
+    {
+    chunkIt = std::lower_bound(chunkIt, chunks.end(), it->first,
+                       [](const Chunk& lhs, long rhs)
+      {
+        return lhs.OrigStart < rhs;
+      });
+    if (chunkIt == chunks.end() || chunkIt->OrigStart != it->first)
+      {
+      --chunkIt;
+      }
+    auto theLine = chunkIt->NewStart;
+    while (chunkIt->NumCommon + chunkIt->NumAdded == 0) // Should be NumRemoved?
+      {
+      ++chunkIt;
+      }
+    assert(theLine == chunkIt->NewStart);
+    if (chunkIt->OrigStart > it->first)
+      {
+      continue;
+      }
+
+    long offset = chunkIt->NewStart - chunkIt->OrigStart;
+
+    Json::Value elem = Json::objectValue;
+    elem["begin"] = (int)(it->first + offset);
+    elem["end"] = (int)(it->second + offset);
+    unreachable.append(elem);
+    }
+}
+
+void cmServerProtocol::ProcessParse(std::string file_path,
+                                    DifferentialFileContent diff)
+{
+  Json::Value obj = Json::objectValue;
+  Json::Value& root = obj["parsed"] = Json::objectValue;
+
+  cmServerParser p(this->CMakeInstance->GetState(),
+                   file_path, cmSystemTools::GetCMakeRoot());
+  root["tokens"] = p.Parse(diff);
+
+  auto& unreachable = root["unreachable"] = Json::arrayValue;
+
+  auto nx = this->CMakeInstance->GetState()->GetNotExecuted(file_path);
+
+  getUnreachable(unreachable, diff, nx);
+
+  this->Server->WriteResponse(obj);
 }
