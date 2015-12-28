@@ -4562,7 +4562,16 @@ void cmMakefile::PushPolicy(bool weak, cmPolicies::PolicyMap const& pm)
 //----------------------------------------------------------------------------
 void cmMakefile::PopPolicy()
 {
-  if (!this->StateSnapshot.PopAndClearPolicy())
+  bool hadFatal = false;
+  if (this->GetCMakeInstance()->GetWorkingMode() == cmake::SNAPSHOT_RECORD_MODE)
+    {
+    hadFatal = !this->StateSnapshot.PopPolicy();
+    }
+  else
+    {
+    hadFatal = !this->StateSnapshot.PopAndClearPolicy();
+    }
+  if (hadFatal)
     {
     this->IssueMessage(cmake::FATAL_ERROR,
                        "cmake_policy POP without matching PUSH");
@@ -4588,7 +4597,10 @@ void cmMakefile::PopSnapshot(bool reportError)
 
   cmState::Snapshot prevSnp = this->StateSnapshot;
   this->StateSnapshot = this->GetState()->Pop(prevSnp);
-  this->GetState()->ClearData(prevSnp);
+  if (this->GetCMakeInstance()->GetWorkingMode() != cmake::SNAPSHOT_RECORD_MODE)
+    {
+    this->GetState()->ClearData(prevSnp);
+    }
   assert(this->StateSnapshot.IsValid());
 }
 
