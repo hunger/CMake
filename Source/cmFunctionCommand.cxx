@@ -137,6 +137,10 @@ bool cmFunctionHelperCommand::InvokeInitialPass
   this->Makefile->AddDefinition("ARGN", argnDef.c_str());
   this->Makefile->MarkVariableAsUsed("ARGN");
 
+  auto lfc = this->FunctionContext;
+  lfc.Line = lfc.CloseParenLine + 1;
+  this->Makefile->CreateArbitrarySnapshot(lfc);
+
   // Invoke all the functions that were collected in the block.
   // for each function
   for(unsigned int c = 0; c < this->Functions.size(); ++c)
@@ -176,6 +180,12 @@ IsFunctionBlocked(const cmListFileFunction& lff, cmMakefile &mf,
     // if this is the endfunction for this function then execute
     if (!this->Depth)
       {
+      auto lfc =
+          cmListFileContext::FromCommandContext(lff,
+                                                mf.GetExecutionFilePath());
+      ++lfc.Line;
+      mf.CreateArbitrarySnapshot(lfc);
+
       // create a new command and add it to cmake
       cmFunctionHelperCommand *f = new cmFunctionHelperCommand();
       f->Args = this->Args;
@@ -236,6 +246,10 @@ bool cmFunctionCommand
     this->SetError("called with incorrect number of arguments");
     return false;
     }
+
+  auto lfc = this->Makefile->GetExecutionContext();
+  ++lfc.Line;
+  this->Makefile->CreateArbitrarySnapshot(lfc);
 
   // create a function blocker
   cmFunctionFunctionBlocker *f = new cmFunctionFunctionBlocker();
