@@ -457,7 +457,8 @@ void cmake::ReadListFile(const std::vector<std::string>& args,
       (cmSystemTools::GetCurrentWorkingDirectory());
     snapshot.SetDefaultDefinitions();
     cmsys::auto_ptr<cmMakefile> mf(new cmMakefile(gg, snapshot));
-    if (this->GetWorkingMode() != NORMAL_MODE)
+    if (this->GetWorkingMode() != NORMAL_MODE
+      && this->GetWorkingMode() != SNAPSHOT_RECORD_MODE)
       {
       std::string file(cmSystemTools::CollapseFullPath(path));
       cmSystemTools::ConvertToUnixSlashes(file);
@@ -1371,7 +1372,8 @@ int cmake::ActualConfigure()
   this->CleanupCommandsAndMacros();
 
   int res = 0;
-  if ( this->GetWorkingMode() == NORMAL_MODE )
+  if ( this->GetWorkingMode() == NORMAL_MODE
+    || this->GetWorkingMode() == SNAPSHOT_RECORD_MODE)
     {
     res = this->DoPreConfigureChecks();
     }
@@ -1612,7 +1614,8 @@ int cmake::ActualConfigure()
     }
 
   // only save the cache if there were no fatal errors
-  if ( this->GetWorkingMode() == NORMAL_MODE )
+  if ( this->GetWorkingMode() == NORMAL_MODE
+    || this->GetWorkingMode() == SNAPSHOT_RECORD_MODE)
     {
     this->SaveCache(this->GetHomeOutputDirectory());
     }
@@ -1670,7 +1673,8 @@ int cmake::Run(const std::vector<std::string>& args, bool noconfigure)
     return 0;
     }
 
-  if ( this->GetWorkingMode() == NORMAL_MODE )
+  if ( this->GetWorkingMode() == NORMAL_MODE
+    || this->GetWorkingMode() == SNAPSHOT_RECORD_MODE)
     {
     // load the cache
     if(this->LoadCache() < 0)
@@ -1692,7 +1696,8 @@ int cmake::Run(const std::vector<std::string>& args, bool noconfigure)
     }
 
   // In script mode we terminate after running the script.
-  if(this->GetWorkingMode() != NORMAL_MODE)
+  if(this->GetWorkingMode() != NORMAL_MODE
+    && this->GetWorkingMode() != SNAPSHOT_RECORD_MODE)
     {
     if(cmSystemTools::GetErrorOccuredFlag())
       {
@@ -1729,7 +1734,8 @@ int cmake::Run(const std::vector<std::string>& args, bool noconfigure)
     }
 
   int ret = this->Configure();
-  if (ret || this->GetWorkingMode() != NORMAL_MODE)
+  if (ret || (this->GetWorkingMode() != NORMAL_MODE
+    && this->GetWorkingMode() != SNAPSHOT_RECORD_MODE))
     {
 #if defined(CMAKE_HAVE_VS_GENERATORS)
     if(!this->VSSolutionFile.empty() && this->GlobalGenerator)
@@ -1783,7 +1789,8 @@ int cmake::Generate()
   // Save the cache again after a successful Generate so that any internal
   // variables created during Generate are saved. (Specifically target GUIDs
   // for the Visual Studio and Xcode generators.)
-  if ( this->GetWorkingMode() == NORMAL_MODE )
+  if ( this->GetWorkingMode() == NORMAL_MODE
+    || this->GetWorkingMode() == SNAPSHOT_RECORD_MODE)
     {
     this->SaveCache(this->GetHomeOutputDirectory());
     }
