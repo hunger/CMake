@@ -78,6 +78,9 @@ void ScopedBit(cmIfFunctionBlocker* that,
         // statement
 //        mf.PrintCommandTrace(functions[c]);
         }
+      mf.GetStateSnapshot().UnmarkNotExecuted(
+            functionBlocks[c].ConditionBegin);
+      mf.GetStateSnapshot().UnmarkNotExecuted(functionBlocks[c].BlockBegin);
       Execute(functionBlocks[c].Functions, mf, inStatus);
       return;
       }
@@ -88,6 +91,8 @@ void ScopedBit(cmIfFunctionBlocker* that,
         {
 //        mf.PrintCommandTrace(functions[c]);
         }
+      mf.GetStateSnapshot().UnmarkNotExecuted(
+            functionBlocks[c].ConditionBegin);
 
       std::string errorString;
 
@@ -126,6 +131,7 @@ void ScopedBit(cmIfFunctionBlocker* that,
 
       if (isTrue)
         {
+        mf.GetStateSnapshot().UnmarkNotExecuted(functionBlocks[c].BlockBegin);
         Execute(functionBlocks[c].Functions, mf, inStatus);
         return;
         }
@@ -152,6 +158,10 @@ IsFunctionBlocked(const cmListFileFunction& lff,
     // if this is the endif for this if statement, then start executing
     if (!this->ScopeDepth)
       {
+      mf.GetStateSnapshot().MarkNotExecuted(
+            this->FunctionBlocks.back().BlockBegin, lff.Line);
+      this->FunctionBlocks.back().BlockEnd = lff.Line;
+
       // Remove the function blocker for this scope or bail.
       cmsys::auto_ptr<cmFunctionBlocker>
         fb(mf.RemoveFunctionBlocker(this, lff));
@@ -159,6 +169,8 @@ IsFunctionBlocked(const cmListFileFunction& lff,
 
       if (!this->IsBlocking)
         {
+        mf.GetStateSnapshot().UnmarkNotExecuted(
+              this->FunctionBlocks.front().BlockBegin);
         Execute(this->FunctionBlocks.front().Functions, mf, inStatus);
         return true;
         }
@@ -170,9 +182,18 @@ IsFunctionBlocked(const cmListFileFunction& lff,
   else if (this->ScopeDepth == 1
            && !cmSystemTools::Strucmp(lff.Name.c_str(),"elseif"))
     {
+    mf.GetStateSnapshot().MarkNotExecuted(
+          this->FunctionBlocks.back().BlockBegin, lff.Line);
+    this->FunctionBlocks.back().BlockEnd = lff.Line;
     cmListFileFunctionBlock block;
     block.Condition = lff.Arguments;
+    block.ConditionBegin = lff.Line;
+    block.BlockBegin = lff.CloseParenLine + 1;
     block.Backtrace = mf.GetBacktrace(lff);
+
+    mf.GetStateSnapshot().MarkNotExecuted(
+          block.ConditionBegin,
+          block.BlockBegin);
 
     block.CommCon = lff;
 
@@ -182,7 +203,17 @@ IsFunctionBlocked(const cmListFileFunction& lff,
   else if (this->ScopeDepth == 1
            && !cmSystemTools::Strucmp(lff.Name.c_str(),"else"))
     {
+    mf.GetStateSnapshot().MarkNotExecuted(
+          this->FunctionBlocks.back().BlockBegin, lff.Line);
+    this->FunctionBlocks.back().BlockEnd = lff.Line;
     cmListFileFunctionBlock block;
+    block.ConditionBegin = lff.Line;
+    block.BlockBegin = lff.CloseParenLine + 1;
+
+    mf.GetStateSnapshot().MarkNotExecuted(
+          block.ConditionBegin,
+          block.BlockBegin);
+
     this->FunctionBlocks.push_back(block);
     addIt = false;
     }
@@ -265,6 +296,8 @@ bool cmIfCommand
   cmListFileFunctionBlock block;
   block.Condition = args;
   auto lfc = this->Makefile->GetExecutionContext();
+  block.ConditionBegin = lfc.Line;
+  block.BlockBegin = lfc.CloseParenLine + 1;
   block.CommCon.Line = lfc.Line;
   block.CommCon.Name = lfc.Name;
 
