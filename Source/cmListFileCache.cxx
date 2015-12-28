@@ -26,7 +26,7 @@ struct cmListFileParser
   cmListFileParser(cmListFile* lf, cmMakefile* mf, const char* filename);
   ~cmListFileParser();
   bool ParseFile();
-  bool ParseFunction(const char* name, long line);
+  bool ParseFunction(cmListFileLexer_Token *firstToken);
   bool AddArgument(cmListFileLexer_Token* token,
                    cmListFileArgument::Delimiter delim);
   cmListFile* ListFile;
@@ -97,7 +97,7 @@ bool cmListFileParser::ParseFile()
       if(haveNewline)
         {
         haveNewline = false;
-        if(this->ParseFunction(token->text, token->line))
+        if(this->ParseFunction(token))
           {
           this->ListFile->Functions.push_back(this->Function);
           }
@@ -247,12 +247,12 @@ bool cmListFile::ParseFile(const char* filename,
 }
 
 //----------------------------------------------------------------------------
-bool cmListFileParser::ParseFunction(const char* name, long line)
+bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
 {
   // Inintialize a new function call.
   this->Function = cmListFileFunction();
-  this->Function.Name = name;
-  this->Function.Line = line;
+  this->Function.Name = firstToken->text;
+  this->Function.Line = firstToken->line;
 
   // Command name has already been parsed.  Read the left paren.
   cmListFileLexer_Token* token;
