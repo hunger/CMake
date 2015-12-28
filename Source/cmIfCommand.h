@@ -15,6 +15,14 @@
 #include "cmCommand.h"
 #include "cmFunctionBlocker.h"
 
+struct cmListFileFunctionBlock
+{
+  std::vector<cmListFileFunction> Functions;
+  std::vector<cmListFileArgument> Condition;
+  cmListFileBacktrace Backtrace;
+  cmCommandContext CommCon;
+};
+
 class cmIfFunctionBlocker : public cmFunctionBlocker
 {
 public:
@@ -27,8 +35,9 @@ public:
   virtual bool ShouldRemove(const cmListFileFunction& lff,
                             cmMakefile &mf);
 
-  std::vector<cmListFileArgument> Args;
-  std::vector<cmListFileFunction> Functions;
+  std::vector<cmListFileFunctionBlock> FunctionBlocks;
+//  void HandleBlock(cmMakefile &mf, cmExecutionStatus &);
+
   bool IsBlocking;
   bool HasRun;
   unsigned int ScopeDepth;
