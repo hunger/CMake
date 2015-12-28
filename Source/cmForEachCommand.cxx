@@ -53,6 +53,12 @@ IsFunctionBlocked(const cmListFileFunction& lff, cmMakefile &mf,
       std::vector<std::string>::const_iterator j = this->Args.begin();
       ++j;
 
+      if (j == this->Args.end())
+        {
+        mf.GetStateSnapshot().MarkNotExecuted(
+              this->GetStartingContext().CloseParenLine + 1, lff.Line);
+        }
+
       for( ; j != this->Args.end(); ++j)
         {
         // set the variable to the loop value

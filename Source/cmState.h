@@ -31,6 +31,7 @@ class cmState
   struct SnapshotDataType;
   struct PolicyStackEntry;
   struct BuildsystemDirectoryStateType;
+  struct NotExecutedLines;
   typedef cmLinkedTree<SnapshotDataType>::iterator PositionType;
   friend class Snapshot;
 public:
@@ -77,6 +78,9 @@ public:
     Snapshot GetBuildsystemDirectoryParent() const;
     Snapshot GetCallStackParent() const;
     SnapshotType GetType() const;
+
+    void MarkNotExecuted(long begin, long end);
+    void UnmarkNotExecuted(long begin);
 
     void SetPolicy(cmPolicies::PolicyID id, cmPolicies::PolicyStatus status);
     cmPolicies::PolicyStatus GetPolicy(cmPolicies::PolicyID id) const;
@@ -343,6 +347,7 @@ private:
   cmLinkedTree<BuildsystemDirectoryStateType> BuildsystemDirectory;
 
   cmLinkedTree<std::string> ExecutionListFiles;
+  std::map<std::string, NotExecutedLines> NotExectutedLines;
 
   cmLinkedTree<PolicyStackEntry> PolicyStack;
   cmLinkedTree<SnapshotDataType> SnapshotData;
