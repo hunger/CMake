@@ -253,6 +253,7 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
   this->Function = cmListFileFunction();
   this->Function.Name = firstToken->text;
   this->Function.Line = firstToken->line;
+  this->Function.Column = firstToken->column;
 
   // Command name has already been parsed.  Read the left paren.
   cmListFileLexer_Token* token;
@@ -278,6 +279,7 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
     cmSystemTools::Error(error.str().c_str());
     return false;
     }
+  this->Function.OpenParenColumn = token->column;
 
   // Arguments.
   unsigned long lastLine;
@@ -305,6 +307,8 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
       {
       if (parenDepth == 0)
         {
+        this->Function.CloseParenLine = token->line;
+        this->Function.CloseParenColumn = token->column;
         return true;
         }
       parenDepth--;

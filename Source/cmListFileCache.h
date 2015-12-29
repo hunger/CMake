@@ -29,7 +29,12 @@ struct cmCommandContext
 {
   std::string Name;
   long Line;
-  cmCommandContext(): Name(), Line(0) {}
+  long Column;
+  long OpenParenColumn;
+  long CloseParenLine;
+  long CloseParenColumn;
+  cmCommandContext(): Name(), Line(0), Column(0),
+    OpenParenColumn(0) , CloseParenLine(0) , CloseParenColumn(0) {}
 };
 
 struct cmListFileArgument
@@ -64,7 +69,13 @@ public:
   std::string Name;
   std::string FilePath;
   long Line;
-  cmListFileContext(): Name(), FilePath(), Line(0) {}
+  long Column;
+  long OpenParenColumn;
+  long CloseParenLine;
+  long CloseParenColumn;
+  cmListFileContext(): Name(), FilePath(), Line(0), Column(0),
+    OpenParenColumn(0) ,
+    CloseParenLine(0) , CloseParenColumn(0)  {}
 
   static cmListFileContext FromCommandContext(cmCommandContext const& lfcc,
                                               std::string const& fileName)
@@ -72,6 +83,10 @@ public:
     cmListFileContext lfc;
     lfc.FilePath = fileName;
     lfc.Line = lfcc.Line;
+    lfc.Column = lfcc.Column;
+    lfc.OpenParenColumn = lfcc.OpenParenColumn;
+    lfc.CloseParenLine = lfcc.CloseParenLine;
+    lfc.CloseParenColumn = lfcc.CloseParenColumn;
     lfc.Name = lfcc.Name;
     return lfc;
   }
