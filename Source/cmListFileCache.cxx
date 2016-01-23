@@ -27,6 +27,9 @@ struct cmListFileParser
   ~cmListFileParser();
   bool ParseFile();
   bool ParseFunction(cmListFileLexer_Token *firstToken);
+
+  void AddPartialFunction();
+
   bool AddArgument(cmListFileLexer_Token* token,
                    cmListFileArgument::Delimiter delim);
   cmListFile* ListFile;
@@ -35,13 +38,14 @@ struct cmListFileParser
   cmListFileLexer* Lexer;
   cmListFileFunction Function;
   enum { SeparationOkay, SeparationWarning, SeparationError} Separation;
+  bool IsString;
 };
 
 //----------------------------------------------------------------------------
 cmListFileParser::cmListFileParser(cmListFile* lf, cmMakefile* mf,
                                    const char* filename):
   ListFile(lf), Makefile(mf), FileName(filename),
-  Lexer(cmListFileLexer_New())
+  Lexer(cmListFileLexer_New()), IsString(false)
 {
 }
 
@@ -261,6 +265,11 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
         token->type == cmListFileLexer_Token_Space) {}
   if(!token)
     {
+    if (this->IsString)
+      {
+      this->AddPartialFunction();
+      return true;
+      }
     std::ostringstream error;
     error << "Error in cmake code at\n" << this->FileName << ":"
           << cmListFileLexer_GetCurrentLine(this->Lexer) << ":\n"
@@ -270,6 +279,11 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
     }
   if(token->type != cmListFileLexer_Token_ParenLeft)
     {
+    if (this->IsString)
+      {
+      this->AddPartialFunction();
+      return true;
+      }
     std::ostringstream error;
     error << "Error in cmake code at\n" << this->FileName << ":"
           << cmListFileLexer_GetCurrentLine(this->Lexer) << ":\n"
@@ -350,6 +364,11 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
       }
     else
       {
+      if (this->IsString)
+        {
+        this->AddPartialFunction();
+        return true;
+        }
       // Error.
       std::ostringstream error;
       error << "Error in cmake code at\n" << this->FileName << ":"
@@ -363,6 +382,11 @@ bool cmListFileParser::ParseFunction(cmListFileLexer_Token *firstToken)
       }
     }
 
+  if (this->IsString)
+    {
+    this->AddPartialFunction();
+    return true;
+    }
   std::ostringstream error;
   error << "Error in cmake code at\n"
         << this->FileName << ":" << lastLine << ":\n"
@@ -400,6 +424,26 @@ bool cmListFileParser::AddArgument(cmListFileLexer_Token* token,
     this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, m.str());
     return true;
     }
+}
+
+void cmListFileParser::AddPartialFunction()
+{
+  if (this->Function.Arguments.empty())
+    {
+    if (this->Function.OpenParenColumn == 0)
+      {
+      this->Function.OpenParenColumn = this->Function.Column + this->Function.Name.size();
+      }
+    this->Function.CloseParenColumn = this->Function.OpenParenColumn + 1;
+    this->Function.CloseParenLine = this->Function.Line;
+    }
+  else
+    {
+    auto lastArg = this->Function.Arguments.back();
+    this->Function.CloseParenColumn = lastArg.Column + lastArg.Value.size();
+    this->Function.CloseParenLine = lastArg.Line;
+    }
+  this->ListFile->Functions.push_back(this->Function);
 }
 
 cmListFileBacktrace::cmListFileBacktrace(cmState::Snapshot snapshot,
