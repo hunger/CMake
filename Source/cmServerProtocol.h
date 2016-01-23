@@ -63,6 +63,9 @@ private:
   void ProcessCodeComplete(std::string filePath,
                            long fileLine, long fileColumn,
                            DifferentialFileContent diff);
+  void ProcessContextWriters(std::string filePath,
+                           long fileLine, long fileColumn,
+                           DifferentialFileContent diff);
 
 private:
   std::pair<cmState::Snapshot, long>

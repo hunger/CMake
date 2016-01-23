@@ -8,8 +8,9 @@
 
 #include <cmsys/Glob.hxx>
 
-cmServerCompleter::cmServerCompleter(cmake* cm, cmState::Snapshot snp)
-  : CMakeInstance(cm), Snapshot(snp)
+cmServerCompleter::cmServerCompleter(cmake* cm, cmState::Snapshot snp,
+                                     bool originMode)
+  : CMakeInstance(cm), Snapshot(snp), mOriginMode(originMode)
 {
 
 }
@@ -160,6 +161,23 @@ Json::Value cmServerCompleter::CodeCompleteParameter(cmState::Snapshot snp,
     if (end->StartLine == fileLine)
       {
       fileColumn -= end->StartColumn;
+      }
+
+    if (mOriginMode)
+      {
+      std::string context = line;
+      auto openPos = context.find("${");
+      if (openPos != std::string::npos)
+        {
+        context = context.substr(openPos + 2);
+        auto closePos = context.find("}");
+        if (closePos != std::string::npos)
+          {
+          context = context.substr(0, closePos);
+          return this->VariableMatch(snp, context);
+          }
+        }
+      return noCompletions();
       }
 
     matcher = line.substr(0, fileColumn);
@@ -408,6 +426,17 @@ std::vector<std::string> cmServerCompleter::GetModuleNames(cmState::Snapshot snp
   names.erase(cmRemoveDuplicates(names), names.end());
 
   return names;
+}
+
+Json::Value cmServerCompleter::VariableMatch(cmState::Snapshot snp,
+                                            std::string matcher)
+{
+  (void)snp;
+  Json::Value root = Json::objectValue;
+
+  Json::Value& obj = root["context_origin"] = Json::objectValue;
+  obj["matcher"] = matcher;
+  return root;
 }
 
 Json::Value cmServerCompleter::CodeCompleteVariable(cmState::Snapshot snp,
