@@ -123,6 +123,20 @@ cmDefinitions cmDefinitions::MakeClosure(StackIter begin,
   return closure;
 }
 
+bool cmDefinitions::IsDefined(std::string key,
+                              StackIter begin,
+                              StackIter end)
+{
+  for (StackIter it = begin; it != end; ++it)
+    {
+    if (it->Map.find(key) != it->Map.end())
+      {
+      return true;
+      }
+    }
+  return false;
+}
+
 //----------------------------------------------------------------------------
 std::vector<std::string>
 cmDefinitions::ClosureKeys(StackIter begin, StackIter end)
