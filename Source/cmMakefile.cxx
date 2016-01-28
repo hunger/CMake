@@ -30,6 +30,7 @@
 #endif
 #include "cmInstallGenerator.h"
 #include "cmTestGenerator.h"
+#include "cmMessenger.h"
 #include "cmAlgorithms.h"
 #include "cmake.h"
 #include <stdlib.h> // required for atoi
@@ -438,7 +439,9 @@ bool cmMakefile::ReadDependentFile(const char* filename, bool noPolicyScope)
   IncludeScope incScope(this, filenametoread, noPolicyScope);
 
   cmListFile listFile;
-  if (!listFile.ParseFile(filenametoread.c_str(), this))
+  if (!listFile.ParseFile(filenametoread.c_str(),
+                          this->GetMessenger(),
+                          this->GetStateSnapshot()))
     {
     return false;
     }
@@ -493,7 +496,9 @@ bool cmMakefile::ReadListFile(const char* filename)
   ListFileScope scope(this, filenametoread);
 
   cmListFile listFile;
-  if (!listFile.ParseFile(filenametoread.c_str(), this))
+  if (!listFile.ParseFile(filenametoread.c_str(),
+                          this->GetMessenger(),
+                          this->GetStateSnapshot()))
     {
     return false;
     }
@@ -1604,7 +1609,9 @@ void cmMakefile::Configure()
   this->AddDefinition("CMAKE_PARENT_LIST_FILE", currentStart.c_str());
 
   cmListFile listFile;
-  if (!listFile.ParseFile(currentStart.c_str(), this))
+  if (!listFile.ParseFile(currentStart.c_str(),
+                          this->GetMessenger(),
+                          this->GetStateSnapshot()))
     {
     return;
     }
@@ -3718,6 +3725,11 @@ bool cmMakefile::GetIsSourceFileTryCompile() const
 cmake *cmMakefile::GetCMakeInstance() const
 {
   return this->GlobalGenerator->GetCMakeInstance();
+}
+
+cmMessenger* cmMakefile::GetMessenger() const
+{
+  return this->GetCMakeInstance()->GetMessenger();
 }
 
 cmGlobalGenerator* cmMakefile::GetGlobalGenerator() const
