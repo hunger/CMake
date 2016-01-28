@@ -2589,7 +2589,7 @@ static bool cmakeCheckStampList(const char* stampList)
   return true;
 }
 
-cmake::MessageType cmake::ConvertMessageType(cmake::MessageType t)
+cmake::MessageType cmake::ConvertMessageType(cmake::MessageType t) const
 {
   bool warningsAsErrors;
 
@@ -2621,7 +2621,7 @@ cmake::MessageType cmake::ConvertMessageType(cmake::MessageType t)
   return t;
 }
 
-bool cmake::IsMessageTypeVisible(cmake::MessageType t)
+bool cmake::IsMessageTypeVisible(cmake::MessageType t) const
 {
   bool isVisible = true;
 
@@ -2657,7 +2657,7 @@ bool cmake::IsMessageTypeVisible(cmake::MessageType t)
   return isVisible;
 }
 
-bool cmake::PrintMessagePreamble(cmake::MessageType t, std::ostream& msg)
+bool cmake::PrintMessagePreamble(cmake::MessageType t, std::ostream& msg) const
 {
   // Construct the message header.
   if(t == cmake::FATAL_ERROR)
@@ -2756,7 +2756,7 @@ void displayMessage(cmake::MessageType t, std::ostringstream& msg)
 //----------------------------------------------------------------------------
 void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
                          cmListFileBacktrace const& bt,
-                         bool force)
+                         bool force) const
 {
   cmListFileBacktrace backtrace = bt;
 
@@ -2796,7 +2796,7 @@ void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
 //----------------------------------------------------------------------------
 void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
                          cmListFileContext const& lfc,
-                         bool force)
+                         bool force) const
 {
   if (!force)
     {
@@ -2974,7 +2974,7 @@ void cmake::RunCheckForUnusedVariables()
 #endif
 }
 
-bool cmake::GetSuppressDevWarnings()
+bool cmake::GetSuppressDevWarnings() const
 {
   const char* cacheEntryValue = this->State->GetCacheEntryValue(
     "CMAKE_SUPPRESS_DEVELOPER_WARNINGS");
@@ -3002,7 +3002,7 @@ void cmake::SetSuppressDevWarnings(bool b)
                       cmState::INTERNAL);
 }
 
-bool cmake::GetSuppressDeprecatedWarnings()
+bool cmake::GetSuppressDeprecatedWarnings() const
 {
   const char* cacheEntryValue = this->State->GetCacheEntryValue(
     "CMAKE_WARN_DEPRECATED");
@@ -3030,7 +3030,7 @@ void cmake::SetSuppressDeprecatedWarnings(bool b)
                       cmState::INTERNAL);
 }
 
-bool cmake::GetDevWarningsAsErrors()
+bool cmake::GetDevWarningsAsErrors() const
 {
   const char* cacheEntryValue = this->State->GetCacheEntryValue(
     "CMAKE_SUPPRESS_DEVELOPER_ERRORS");
@@ -3058,7 +3058,7 @@ void cmake::SetDevWarningsAsErrors(bool b)
                       cmState::INTERNAL);
 }
 
-bool cmake::GetDeprecatedWarningsAsErrors()
+bool cmake::GetDeprecatedWarningsAsErrors() const
 {
   const char* cacheEntryValue = this->State->GetCacheEntryValue(
     "CMAKE_ERROR_DEPRECATED");
