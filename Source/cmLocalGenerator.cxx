@@ -1617,7 +1617,7 @@ void cmLocalGenerator::OutputLinkLibraries(std::string& linkLibraries,
             "For compatibility with older versions of CMake, "
             "additional flags may be added to export symbols on all "
             "executables regardless of thier ENABLE_EXPORTS property.";
-          this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, w.str());
+          this->IssueMessage(cmake::AUTHOR_WARNING, w.str());
           }
       case cmPolicies::OLD:
         // OLD behavior is to always add the flags
