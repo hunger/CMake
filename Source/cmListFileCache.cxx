@@ -230,10 +230,6 @@ bool cmListFile::ParseFile(const char* filename,
       mf->SetPolicyVersion("2.4");
       }
     }
-  }
-
-  if(topLevel)
-    {
     bool hasProject = false;
     // search for a project command
     for(std::vector<cmListFileFunction>::iterator i
