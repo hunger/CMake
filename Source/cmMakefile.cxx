@@ -575,7 +575,8 @@ void cmMakefile::EnforceDirectoryLevelRules() const
       case cmPolicies::WARN:
         // Warn because the user did not provide a mimimum required
         // version.
-        this->IssueMessage(cmake::AUTHOR_WARNING, msg.str());
+        this->GetCMakeInstance()->IssueMessage(cmake::AUTHOR_WARNING, msg.str(),
+                                               this->StateSnapshot);
       case cmPolicies::OLD:
         // OLD behavior is to use policy version 2.4 set in
         // cmListFileCache.
@@ -584,7 +585,8 @@ void cmMakefile::EnforceDirectoryLevelRules() const
       case cmPolicies::REQUIRED_ALWAYS:
       case cmPolicies::NEW:
         // NEW behavior is to issue an error.
-        this->IssueMessage(cmake::FATAL_ERROR, msg.str());
+        this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, msg.str(),
+                                               this->StateSnapshot);
         cmSystemTools::SetFatalErrorOccured();
         return;
       }
@@ -690,12 +692,12 @@ void cmMakefile::ConfigureFinalPass()
   if (oldValue && cmSystemTools::VersionCompare(
         cmSystemTools::OP_LESS, oldValue, "2.4"))
     {
-    this->IssueMessage(
+    this->GetCMakeInstance()->IssueMessage(
       cmake::FATAL_ERROR,
       "You have set CMAKE_BACKWARDS_COMPATIBILITY to a CMake version less "
       "than 2.4. This version of CMake only supports backwards compatibility "
       "with CMake 2.4 or later. For compatibility with older versions please "
-      "use any CMake 2.8.x release or lower.");
+      "use any CMake 2.8.x release or lower.", this->StateSnapshot);
     }
 #if defined(_WIN32) && !defined(__CYGWIN__)
   // Do old-style link dependency analysis only for CM_USE_OLD_VS6.
@@ -2405,7 +2407,8 @@ void cmMakefile::ExpandVariablesCMP0019()
       << "\n"
       << "The following variable evaluations were encountered:\n"
       << w.str();
-    this->IssueMessage(cmake::AUTHOR_WARNING, m.str());
+    this->GetCMakeInstance()->IssueMessage(cmake::AUTHOR_WARNING, m.str(),
+                                           this->StateSnapshot);
     }
 }
 
