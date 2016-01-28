@@ -123,7 +123,7 @@ void cmMakefile::IssueMessage(cmake::MessageType t,
     cmListFileContext lfc;
     // We are not currently executing a command.  Add whatever context
     // information we have.
-    lfc.FilePath = this->GetExecutionFilePath();
+    lfc.FilePath = this->StateSnapshot.GetExecutionListFile();
 
     if(!this->GetCMakeInstance()->GetIsInTryCompile())
       {
