@@ -77,7 +77,7 @@ public:
 
 bool cmFunctionHelperCommand::InvokeInitialPass
 (const std::vector<cmListFileArgument>& args,
- cmExecutionStatus & inStatus)
+ cmExecutionStatus &)
 {
   // Expand the argument list to the function.
   std::vector<std::string> expandedArgs;
@@ -137,12 +137,12 @@ bool cmFunctionHelperCommand::InvokeInitialPass
     {
     cmExecutionStatus status;
     if (!this->Makefile->ExecuteCommand(this->Functions[c],status) ||
-        status.GetNestedError())
+        (cmSystemTools::GetErrorOccuredFlag()
+         && !cmSystemTools::GetFatalErrorOccured()))
       {
       // The error message should have already included the call stack
       // so we do not need to report an error here.
       functionScope.Quiet();
-      inStatus.SetNestedError(true);
       return false;
       }
     if (status.GetReturnInvoked())
