@@ -120,18 +120,8 @@ void cmMakefile::IssueMessage(cmake::MessageType t,
     }
   else
     {
-    cmListFileContext lfc;
-    // We are not currently executing a command.  Add whatever context
-    // information we have.
-    lfc.FilePath = this->StateSnapshot.GetExecutionListFile();
-
-    if(!this->GetCMakeInstance()->GetIsInTryCompile())
-      {
-      cmOutputConverter converter(this->StateSnapshot);
-      lfc.FilePath = converter.Convert(lfc.FilePath, cmOutputConverter::HOME);
-      }
-    lfc.Line = 0;
-    this->GetCMakeInstance()->IssueMessage(t, text, lfc, force);
+    this->GetCMakeInstance()->IssueMessage(t, text,
+                                           this->StateSnapshot, force);
     }
 }
 

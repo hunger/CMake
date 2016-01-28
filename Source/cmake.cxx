@@ -2795,6 +2795,23 @@ void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
 
 //----------------------------------------------------------------------------
 void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
+                         cmState::Snapshot snp,
+                         bool force) const
+{
+  cmListFileContext lfc;
+  lfc.FilePath = snp.GetExecutionListFile();
+
+  if(!this->GetIsInTryCompile())
+    {
+    cmOutputConverter converter(snp);
+    lfc.FilePath = converter.Convert(lfc.FilePath, cmOutputConverter::HOME);
+    }
+  lfc.Line = 0;
+  this->IssueMessage(t, text, lfc, force);
+}
+
+//----------------------------------------------------------------------------
+void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
                          cmListFileContext const& lfc,
                          bool force) const
 {

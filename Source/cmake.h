@@ -361,6 +361,9 @@ class cmake
   void IssueMessage(cmake::MessageType t, std::string const& text,
         cmListFileContext const& lfc,
         bool force = false) const;
+  void IssueMessage(cmake::MessageType t, std::string const& text,
+        cmState::Snapshot snp,
+        bool force = false) const;
 
   ///! run the --build option
   int Build(const std::string& dir,

@@ -69,16 +69,8 @@ cmLocalGenerator::~cmLocalGenerator()
 void cmLocalGenerator::IssueMessage(cmake::MessageType t,
                                     std::string const& text) const
 {
-  cmListFileContext lfc;
-  lfc.FilePath = this->StateSnapshot.GetExecutionListFile();
-
-  if(!this->GlobalGenerator->GetCMakeInstance()->GetIsInTryCompile())
-    {
-    cmOutputConverter converter(this->StateSnapshot);
-    lfc.FilePath = converter.Convert(lfc.FilePath, cmOutputConverter::HOME);
-    }
-  lfc.Line = 0;
-  this->GlobalGenerator->GetCMakeInstance()->IssueMessage(t, text, lfc);
+  this->GlobalGenerator->GetCMakeInstance()->IssueMessage(t, text,
+                                                          this->StateSnapshot);
 }
 
 //----------------------------------------------------------------------------
