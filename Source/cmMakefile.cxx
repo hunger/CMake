@@ -4718,15 +4718,23 @@ AddRequiredTargetFeature(cmTarget *target, const std::string& feature,
       << this->GetDefinition("CMAKE_" + lang + "_COMPILER_ID")
       << "\"\nversion "
       << this->GetDefinition("CMAKE_" + lang + "_COMPILER_VERSION") << ".";
-    this->IssueMessage(cmake::FATAL_ERROR, e.str());
+    if (error)
+      {
+      *error = e.str();
+      }
+    else
+      {
+      this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, e.str(),
+                                         this->StateSnapshot);
+      }
     return false;
     }
 
   target->AppendProperty("COMPILE_FEATURES", feature.c_str());
 
   return lang == "C"
-      ? this->AddRequiredTargetCFeature(target, feature)
-      : this->AddRequiredTargetCxxFeature(target, feature);
+      ? this->AddRequiredTargetCFeature(target, feature, error)
+      : this->AddRequiredTargetCxxFeature(target, feature, error);
 }
 
 //----------------------------------------------------------------------------
@@ -4769,7 +4777,8 @@ CompileFeatureKnown(cmTarget const* target, const std::string& feature,
     }
   else
     {
-    this->IssueMessage(cmake::FATAL_ERROR, e.str());
+    this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, e.str(),
+                                       this->StateSnapshot);
     }
   return false;
 }
@@ -4802,7 +4811,8 @@ CompileFeaturesAvailable(const std::string& lang, std::string *error) const
       }
     else
       {
-      this->IssueMessage(cmake::FATAL_ERROR, e.str());
+      this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, e.str(),
+                                         this->StateSnapshot);
       }
     return 0;
     }
@@ -5019,7 +5029,8 @@ void cmMakefile::CheckNeededCxxLanguage(const std::string& feature,
 //----------------------------------------------------------------------------
 bool cmMakefile::
 AddRequiredTargetCxxFeature(cmTarget *target,
-                            const std::string& feature) const
+                            const std::string& feature,
+                            std::string* error) const
 {
   bool needCxx98 = false;
   bool needCxx11 = false;
@@ -5036,7 +5047,15 @@ AddRequiredTargetCxxFeature(cmTarget *target,
       std::ostringstream e;
       e << "The CXX_STANDARD property on target \"" << target->GetName()
         << "\" contained an invalid value: \"" << existingCxxStandard << "\".";
-      this->IssueMessage(cmake::FATAL_ERROR, e.str());
+      if (error)
+        {
+        *error = e.str();
+        }
+      else
+        {
+        this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, e.str(),
+                                           this->StateSnapshot);
+        }
       return false;
       }
     }
@@ -5118,7 +5137,8 @@ void cmMakefile::CheckNeededCLanguage(const std::string& feature,
 
 //----------------------------------------------------------------------------
 bool cmMakefile::
-AddRequiredTargetCFeature(cmTarget *target, const std::string& feature) const
+AddRequiredTargetCFeature(cmTarget *target, const std::string& feature,
+                          std::string* error) const
 {
   bool needC90 = false;
   bool needC99 = false;
@@ -5135,7 +5155,15 @@ AddRequiredTargetCFeature(cmTarget *target, const std::string& feature) const
       std::ostringstream e;
       e << "The C_STANDARD property on target \"" << target->GetName()
         << "\" contained an invalid value: \"" << existingCStandard << "\".";
-      this->IssueMessage(cmake::FATAL_ERROR, e.str());
+      if (error)
+        {
+        *error = e.str();
+        }
+      else
+        {
+        this->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR, e.str(),
+                                           this->StateSnapshot);
+        }
       return false;
       }
     }
