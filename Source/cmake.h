@@ -23,6 +23,7 @@ class cmGlobalGeneratorFactory;
 class cmGlobalGenerator;
 class cmLocalGenerator;
 class cmMakefile;
+class cmMessenger;
 class cmVariableWatch;
 class cmFileTimeComparison;
 class cmExternalMakefileProjectGenerator;
@@ -310,6 +311,8 @@ class cmake
   std::string const& GetCMakeEditCommand() const
     { return this->CMakeEditCommand; }
 
+  cmMessenger* GetMessenger() const;
+
   /*
    * Get the state of the suppression of developer (author) warnings.
    * Returns false, by default, if developer warnings should be shown, true
@@ -462,6 +465,7 @@ private:
 
   cmState* State;
   cmState::Snapshot CurrentSnapshot;
+  cmMessenger* Messenger;
 
   void UpdateConversionPathTable();
 
