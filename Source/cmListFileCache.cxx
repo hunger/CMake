@@ -26,6 +26,7 @@ struct cmListFileParser
   cmListFileParser(cmListFile* lf, cmMakefile* mf, const char* filename);
   ~cmListFileParser();
   void IssueError(std::string const& text);
+  void IssueFileOpenError(std::string const& text) const;
   bool ParseFile();
   bool ParseFunction(const char* name, long line);
   bool AddArgument(cmListFileLexer_Token* token,
@@ -53,6 +54,13 @@ cmListFileParser::~cmListFileParser()
   cmListFileLexer_Delete(this->Lexer);
 }
 
+void cmListFileParser::IssueFileOpenError(const std::string& text) const
+{
+  cmListFileBacktrace lfbt = this->Snapshot;
+  this->Makefile->GetCMakeInstance()->IssueMessage(cmake::FATAL_ERROR,
+                                                   text, lfbt);
+}
+
 void cmListFileParser::IssueError(const std::string& text)
 {
   cmListFileContext lfc;
@@ -73,7 +81,7 @@ bool cmListFileParser::ParseFile()
     {
     std::ostringstream m;
     m << "cmListFileCache: error can not open file.";
-    this->Makefile->IssueMessage(cmake::FATAL_ERROR, m.str());
+    this->IssueFileOpenError(m.str());
     return false;
     }
 
@@ -84,7 +92,7 @@ bool cmListFileParser::ParseFile()
     cmListFileLexer_SetFileName(this->Lexer, 0, 0);
     std::ostringstream m;
     m << "File starts with a Byte-Order-Mark that is not UTF-8.";
-    this->Makefile->IssueMessage(cmake::FATAL_ERROR, m.str());
+    this->IssueFileOpenError(m.str());
     return false;
     }
 
