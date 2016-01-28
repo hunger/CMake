@@ -32,6 +32,7 @@ struct cmListFileParser
                    cmListFileArgument::Delimiter delim);
   cmListFile* ListFile;
   cmMakefile* Makefile;
+  cmState::Snapshot Snapshot;
   const char* FileName;
   cmListFileLexer* Lexer;
   cmListFileFunction Function;
@@ -41,8 +42,8 @@ struct cmListFileParser
 //----------------------------------------------------------------------------
 cmListFileParser::cmListFileParser(cmListFile* lf, cmMakefile* mf,
                                    const char* filename):
-  ListFile(lf), Makefile(mf), FileName(filename),
-  Lexer(cmListFileLexer_New())
+  ListFile(lf), Makefile(mf), Snapshot(this->Makefile->GetStateSnapshot()),
+  FileName(filename), Lexer(cmListFileLexer_New())
 {
 }
 
@@ -55,7 +56,7 @@ cmListFileParser::~cmListFileParser()
 void cmListFileParser::IssueError(const std::string& text)
 {
   cmListFileContext lfc;
-  cmState::Snapshot snp = this->Makefile->GetStateSnapshot();
+  cmState::Snapshot snp = this->Snapshot;
   cmOutputConverter converter(snp);
   lfc.FilePath = converter.Convert(this->FileName, cmOutputConverter::HOME);
   lfc.Line = cmListFileLexer_GetCurrentLine(this->Lexer);
@@ -363,7 +364,7 @@ bool cmListFileParser::ParseFunction(const char* name, long line)
 
   std::ostringstream error;
   cmListFileContext lfc;
-  cmState::Snapshot snp = this->Makefile->GetStateSnapshot();
+  cmState::Snapshot snp = this->Snapshot;
   cmOutputConverter converter(snp);
   lfc.FilePath = converter.Convert(this->FileName, cmOutputConverter::HOME);
   lfc.Line = lastLine;
@@ -388,7 +389,7 @@ bool cmListFileParser::AddArgument(cmListFileLexer_Token* token,
                   delim == cmListFileArgument::Bracket);
   std::ostringstream m;
   cmListFileContext lfc;
-  cmState::Snapshot snp = this->Makefile->GetStateSnapshot();
+  cmState::Snapshot snp = this->Snapshot;
   cmOutputConverter converter(snp);
   lfc.FilePath = converter.Convert(this->FileName, cmOutputConverter::HOME);
   lfc.Line = token->line;
