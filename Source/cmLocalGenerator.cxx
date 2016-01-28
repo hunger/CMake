@@ -70,8 +70,7 @@ void cmLocalGenerator::IssueMessage(cmake::MessageType t,
                                     std::string const& text) const
 {
   cmListFileContext lfc;
-  lfc.FilePath = this->StateSnapshot.GetDirectory().GetCurrentSource();
-  lfc.FilePath += "/CMakeLists.txt";
+  lfc.FilePath = this->StateSnapshot.GetExecutionListFile();
 
   if(!this->GlobalGenerator->GetCMakeInstance()->GetIsInTryCompile())
     {
