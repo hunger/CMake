@@ -2470,9 +2470,9 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
   bool skipInstallRules = mf->IsOn("CMAKE_SKIP_INSTALL_RULES");
   if(this->InstallTargetEnabled && skipInstallRules)
     {
-    mf->IssueMessage(cmake::WARNING,
+    this->CMakeInstance->IssueMessage(cmake::WARNING,
       "CMAKE_SKIP_INSTALL_RULES was enabled even though "
-      "installation rules have been specified");
+      "installation rules have been specified", mf->GetStateSnapshot());
     }
   else if(this->InstallTargetEnabled && !skipInstallRules)
     {
