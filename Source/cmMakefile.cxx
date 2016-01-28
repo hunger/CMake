@@ -109,21 +109,13 @@ void cmMakefile::IssueMessage(cmake::MessageType t,
                               std::string const& text,
                               bool force) const
 {
-  // Collect context information.
-  if(!this->ExecutionStatusStack.empty())
+  assert(!this->ExecutionStatusStack.empty());
+  if((t == cmake::FATAL_ERROR) || (t == cmake::INTERNAL_ERROR))
     {
-    if((t == cmake::FATAL_ERROR) || (t == cmake::INTERNAL_ERROR))
-      {
-      this->ExecutionStatusStack.back()->SetNestedError(true);
-      }
-    this->GetCMakeInstance()->IssueMessage(t, text, this->GetBacktrace(),
-                                           force);
+    this->ExecutionStatusStack.back()->SetNestedError(true);
     }
-  else
-    {
-    this->GetCMakeInstance()->IssueMessage(t, text,
-                                           this->StateSnapshot, force);
-    }
+  this->GetCMakeInstance()->IssueMessage(t, text, this->GetBacktrace(),
+                                         force);
 }
 
 cmStringRange cmMakefile::GetIncludeDirectoriesEntries() const
