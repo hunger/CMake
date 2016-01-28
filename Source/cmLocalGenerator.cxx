@@ -75,7 +75,7 @@ void cmLocalGenerator::IssueMessage(cmake::MessageType t,
   if(!this->GlobalGenerator->GetCMakeInstance()->GetIsInTryCompile())
     {
     cmOutputConverter converter(this->StateSnapshot);
-    lfc.FilePath = converter.Convert(lfc.FilePath, cmLocalGenerator::HOME);
+    lfc.FilePath = converter.Convert(lfc.FilePath, cmOutputConverter::HOME);
     }
   lfc.Line = 0;
   this->GlobalGenerator->GetCMakeInstance()->IssueMessage(t, text, lfc);
