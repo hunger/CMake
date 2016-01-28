@@ -2657,7 +2657,7 @@ bool cmake::IsMessageTypeVisible(cmake::MessageType t) const
   return isVisible;
 }
 
-bool cmake::PrintMessagePreamble(cmake::MessageType t, std::ostream& msg) const
+bool printMessagePreamble(cmake::MessageType t, std::ostream& msg)
 {
   // Construct the message header.
   if(t == cmake::FATAL_ERROR)
@@ -2777,7 +2777,7 @@ void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
     }
 
   std::ostringstream msg;
-  if (!this->PrintMessagePreamble(t, msg))
+  if (!printMessagePreamble(t, msg))
     {
     return;
     }
@@ -2832,7 +2832,7 @@ void cmake::IssueMessage(cmake::MessageType t, std::string const& text,
     }
 
   std::ostringstream msg;
-  if (!this->PrintMessagePreamble(t, msg))
+  if (!printMessagePreamble(t, msg))
     {
     return;
     }
