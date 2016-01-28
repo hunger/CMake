@@ -315,7 +315,7 @@ class cmake
    * Returns false, by default, if developer warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDevWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDevWarnings();
   /*
    * Set the state of the suppression of developer (author) warnings.
    */
@@ -326,7 +326,7 @@ class cmake
    * Returns false, by default, if deprecated warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDeprecatedWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDeprecatedWarnings();
   /*
    * Set the state of the suppression of deprecated warnings.
    */
@@ -337,7 +337,7 @@ class cmake
    * Returns false, by default, if warnings should not be treated as errors,
    * true otherwise.
    */
-  bool GetDevWarningsAsErrors(cmMakefile const* mf = NULL);
+  bool GetDevWarningsAsErrors();
   /**
    * Set the state of treating developer (author) warnings as errors.
    */
@@ -348,7 +348,7 @@ class cmake
    * Returns false, by default, if warnings should not be treated as errors,
    * true otherwise.
    */
-  bool GetDeprecatedWarningsAsErrors(cmMakefile const* mf = NULL);
+  bool GetDeprecatedWarningsAsErrors();
   /**
    * Set the state of treating developer (author) warnings as errors.
    */
