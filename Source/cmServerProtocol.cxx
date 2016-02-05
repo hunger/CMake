@@ -204,41 +204,23 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
       {
       return ProcessContextualHelp(request);
       }
-#if 0
-    if (value["type"] == "content_diff")
+    if (request.Type == "content_diff")
       {
-      auto diffs = cmServerDiff::GetDiffs(value);
-      this->ProcessContentDiff(
-            value["file_path1"].asString(),
-            value["file_line1"].asInt(),
-            value["file_path2"].asString(),
-            value["file_line2"].asInt(), diffs);
+      return ProcessContentDiff(request);
       }
-    if (value["type"] == "code_complete")
+    if (request.Type == "code_complete")
       {
-      auto diff = cmServerDiff::GetDiff(value);
-      this->ProcessCodeComplete(
-            value["file_path"].asString(),
-            value["file_line"].asInt(),
-            value["file_column"].asInt(),
-            diff);
+      return ProcessCodeComplete(request);
       }
-    if (value["type"] == "context_writers")
+    if (request.Type == "context_writers")
       {
-      auto diff = cmServerDiff::GetDiff(value);
-
-      this->ProcessContextWriters(
-            value["file_path"].asString(),
-            value["file_line"].asInt(),
-            value["file_column"].asInt(),
-            diff);
+      return ProcessContextWriters(request);
       }
-#endif
     break;
     }
   }
 
-  return cmServerResponse::errorResponse(request, "Not implemented!");
+  return cmServerResponse::errorResponse(request, "Unknown command!");
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &request)
@@ -816,6 +798,267 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
   return cmServerResponse::dataResponse(request, Json::objectValue);
 }
 
+cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &request)
+{
+  const std::string filePath1 = request.Data["file_path1"].asString();
+  const long fileLine1 = request.Data["file_line1"].asInt();
+  const std::string filePath2 = request.Data["file_path2"].asString();
+  const long fileLine2 = request.Data["file_line2"].asInt();
+  const std::pair<DifferentialFileContent, DifferentialFileContent> diffs
+          = cmServerDiff::GetDiffs(request.Data);
+
+  if (fileLine1 <= 0 || fileLine2 <= 0)
+    {
+    return cmServerResponse::errorResponse(request, "File line is negative or 0.");
+    }
+
+  if (this->IsNotExecuted(filePath1, fileLine1)
+      || this->IsNotExecuted(filePath2, fileLine2))
+    {
+    Json::Value obj = Json::objectValue;
+
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto res1 = GetSnapshotAndStartLine(filePath1, fileLine1, diffs.first);
+  if (res1.second < 0)
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto res2 = GetSnapshotAndStartLine(filePath2, fileLine2, diffs.second);
+  if (res2.second < 0)
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto desired1 =
+      GetDesiredSnapshot(diffs.first.EditorLines, res1.second, res1.first, fileLine1);
+  cmState::Snapshot contentSnp1 = desired1.first;
+  if (!contentSnp1.IsValid())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto desired2 =
+      GetDesiredSnapshot(diffs.second.EditorLines, res2.second, res2.first, fileLine2);
+  cmState::Snapshot contentSnp2 = desired2.first;
+  if (!contentSnp2.IsValid())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  Json::Value obj = Json::objectValue;
+
+  Json::Value& content = obj["content_diff"] = Json::objectValue;
+
+  std::vector<std::string> keys1 = contentSnp1.ClosureKeys();
+  std::vector<std::string> keys2 = contentSnp2.ClosureKeys();
+
+  auto& addedDefs = content["addedDefs"] = Json::arrayValue;
+  auto& removedDefs = content["removedDefs"] = Json::arrayValue;
+
+  for(auto key : keys2)
+    {
+    auto d1 = contentSnp1.GetDefinition(key);
+    d1 = d1 ? d1 : "";
+    auto d2 = contentSnp2.GetDefinition(key);
+    d2 = d2 ? d2 : "";
+    if (std::find(keys1.begin(), keys1.end(), key) != keys1.end()
+        && !strcmp(d1, d2))
+      continue;
+    Json::Value def = Json::objectValue;
+    def["key"] = key;
+    def["value"] = contentSnp2.GetDefinition(key);
+    addedDefs.append(def);
+    }
+
+  for(auto key : keys1)
+    {
+    auto d1 = contentSnp1.GetDefinition(key);
+    d1 = d1 ? d1 : "";
+    auto d2 = contentSnp2.GetDefinition(key);
+    d2 = d2 ? d2 : "";
+    if (!strcmp(d1, d2))
+      continue;
+    Json::Value def = Json::objectValue;
+    def["key"] = key;
+    def["value"] = contentSnp1.GetDefinition(key);
+    removedDefs.append(def);
+    }
+
+  return cmServerResponse::dataResponse(request, obj);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest &request)
+{
+  const std::string filePath = request.Data["file_path"].asString();
+  const long fileLine = request.Data["file_line"].asInt();
+  const long fileColumn = request.Data["file_column"].asInt();
+  const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
+
+  if (fileLine <= 0)
+    {
+    return cmServerResponse::errorResponse(request, "File line is negative or 0.");
+    }
+
+  auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
+  if (res.second < 0)
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_completions";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto desired =
+      GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine, true);
+  cmState::Snapshot completionSnp = desired.first;
+  if (!completionSnp.IsValid())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_completions";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto prParseStart = diff.EditorLines.begin() + res.second - 1;
+  auto prParseEnd = diff.EditorLines.begin() + fileLine - 1;
+  auto newToParse = std::distance(prParseStart, prParseEnd) + 1;
+
+  auto theLine = *prParseEnd;
+
+  std::string completionPrefix;
+
+  auto columnData = theLine.substr(0, fileColumn);
+  auto strt = columnData.find_first_not_of(' ');
+  if (strt != std::string::npos)
+    {
+    completionPrefix = columnData.substr(strt);
+    }
+
+  cmServerCompleter completer(this->CMakeInstance, completionSnp);
+
+  auto result = completer.Complete(completionSnp,
+                       desired.second, completionPrefix,
+                       newToParse, fileColumn);
+
+  return cmServerResponse::dataResponse(request, result);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerRequest &request)
+{
+  const std::string filePath = request.Data["file_path"].asString();
+  const long fileLine = request.Data["file_line"].asInt();
+  const long fileColumn = request.Data["file_column"].asInt();
+  const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
+
+  if (fileLine <= 0)
+    {
+    return cmServerResponse::errorResponse(request, "file_line is negative or 0.");
+    }
+
+  auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
+  if (res.second < 0)
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto desired =
+      GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine, true);
+  cmState::Snapshot completionSnp = desired.first;
+  if (!completionSnp.IsValid())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto prParseStart = diff.EditorLines.begin() + res.second - 1;
+  auto prParseEnd = diff.EditorLines.begin() + fileLine - 1;
+  auto newToParse = std::distance(prParseStart, prParseEnd) + 1;
+
+  auto theLine = *prParseEnd;
+
+  std::string completionPrefix;
+
+  auto columnData = theLine.substr(0, fileColumn);
+
+  auto strt = columnData.find_first_not_of(' ');
+  if (strt != std::string::npos)
+    {
+    completionPrefix = columnData.substr(strt);
+    }
+
+  cmServerCompleter completer(this->CMakeInstance, completionSnp, true);
+
+  auto result = completer.Complete(completionSnp,
+                       desired.second, completionPrefix,
+                       newToParse, fileColumn);
+
+  if (!result.isMember("context_origin"))
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  if (!result["context_origin"].isMember("matcher"))
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto varName = result["context_origin"]["matcher"].asString();
+
+  auto snps = this->CMakeInstance->GetState()->GetWriters(completionSnp, varName);
+
+  if (snps.empty())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  cmState::Snapshot snp = snps.front();
+
+  cmListFileContext lfc;
+  lfc.FilePath = snp.GetExecutionListFile();
+  lfc.Line = snp.GetStartingPoint();
+  auto it = this->Snapshots.lower_bound(lfc);
+
+  if (it == this->Snapshots.end())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  if (it->second.empty())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["result"] = "no_context";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  ++it;
+
+  Json::Value obj = Json::objectValue;
+  obj["def_match"] = varName;
+  obj["def_origin"] = (int)it->first.Line - 1;
+  return cmServerResponse::dataResponse(request, obj);
+}
+
 std::pair<cmState::Snapshot, long>
 cmServerProtocol0_1::GetSnapshotAndStartLine(std::string filePath,
                                              long fileLine,
@@ -1081,264 +1324,3 @@ Json::Value cmServerProtocol0_1::EmitTypedIdentifier(const std::string &commandN
 
   return this->GenerateContextualHelp(context, value);
 }
-
-#if 0
-void cmServerProtocol::ProcessContentDiff(
-    std::string filePath1, long fileLine1,
-    std::string filePath2, long fileLine2,
-    std::pair<DifferentialFileContent, DifferentialFileContent> diffs)
-{
-  assert(fileLine1 > 0);
-  assert(fileLine2 > 0);
-
-  if (this->IsNotExecuted(filePath1, fileLine1)
-      || this->IsNotExecuted(filePath2, fileLine2))
-    {
-    Json::Value obj = Json::objectValue;
-
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto res1 = GetSnapshotAndStartLine(filePath1, fileLine1, diffs.first);
-  if (res1.second < 0)
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto res2 = GetSnapshotAndStartLine(filePath2, fileLine2, diffs.second);
-  if (res2.second < 0)
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto desired1 =
-      GetDesiredSnapshot(diffs.first.EditorLines, res1.second, res1.first, fileLine1);
-  cmState::Snapshot contentSnp1 = desired1.first;
-  if (!contentSnp1.IsValid())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto desired2 =
-      GetDesiredSnapshot(diffs.second.EditorLines, res2.second, res2.first, fileLine2);
-  cmState::Snapshot contentSnp2 = desired2.first;
-  if (!contentSnp2.IsValid())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  Json::Value obj = Json::objectValue;
-
-  Json::Value& content = obj["content_diff"] = Json::objectValue;
-
-  std::vector<std::string> keys1 = contentSnp1.ClosureKeys();
-  std::vector<std::string> keys2 = contentSnp2.ClosureKeys();
-
-  auto& addedDefs = content["addedDefs"] = Json::arrayValue;
-  auto& removedDefs = content["removedDefs"] = Json::arrayValue;
-
-  for(auto key : keys2)
-    {
-    auto d1 = contentSnp1.GetDefinition(key);
-    d1 = d1 ? d1 : "";
-    auto d2 = contentSnp2.GetDefinition(key);
-    d2 = d2 ? d2 : "";
-    if (std::find(keys1.begin(), keys1.end(), key) != keys1.end()
-        && !strcmp(d1, d2))
-      continue;
-    Json::Value def = Json::objectValue;
-    def["key"] = key;
-    def["value"] = contentSnp2.GetDefinition(key);
-    addedDefs.append(def);
-    }
-
-  for(auto key : keys1)
-    {
-    auto d1 = contentSnp1.GetDefinition(key);
-    d1 = d1 ? d1 : "";
-    auto d2 = contentSnp2.GetDefinition(key);
-    d2 = d2 ? d2 : "";
-    if (!strcmp(d1, d2))
-      continue;
-    Json::Value def = Json::objectValue;
-    def["key"] = key;
-    def["value"] = contentSnp1.GetDefinition(key);
-    removedDefs.append(def);
-    }
-
-  this->Server->WriteResponse(obj);
-}
-
-void cmServerProtocol::ProcessCodeComplete(std::string filePath,
-                                           long fileLine,
-                                           long fileColumn,
-                                           DifferentialFileContent diff)
-{
-  assert(fileLine > 0);
-
-  auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
-  if (res.second < 0)
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_completions";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto desired =
-      GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine, true);
-  cmState::Snapshot completionSnp = desired.first;
-  if (!completionSnp.IsValid())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_completions";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto prParseStart = diff.EditorLines.begin() + res.second - 1;
-  auto prParseEnd = diff.EditorLines.begin() + fileLine - 1;
-  auto newToParse = std::distance(prParseStart, prParseEnd) + 1;
-
-  auto theLine = *prParseEnd;
-
-  std::string completionPrefix;
-
-  auto columnData = theLine.substr(0, fileColumn);
-  auto strt = columnData.find_first_not_of(' ');
-  if (strt != std::string::npos)
-    {
-    completionPrefix = columnData.substr(strt);
-    }
-
-  cmServerCompleter completer(this->CMakeInstance, completionSnp);
-
-  auto result = completer.Complete(completionSnp,
-                       desired.second, completionPrefix,
-                       newToParse, fileColumn);
-
-  this->Server->WriteResponse(result);
-}
-
-void cmServerProtocol::ProcessContextWriters(std::string filePath,
-                                           long fileLine,
-                                           long fileColumn,
-                                           DifferentialFileContent diff)
-{
-  assert(fileLine > 0);
-
-  auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
-  if (res.second < 0)
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto desired =
-      GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine, true);
-  cmState::Snapshot completionSnp = desired.first;
-  if (!completionSnp.IsValid())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto prParseStart = diff.EditorLines.begin() + res.second - 1;
-  auto prParseEnd = diff.EditorLines.begin() + fileLine - 1;
-  auto newToParse = std::distance(prParseStart, prParseEnd) + 1;
-
-  auto theLine = *prParseEnd;
-
-  std::string completionPrefix;
-
-  auto columnData = theLine.substr(0, fileColumn);
-
-  auto strt = columnData.find_first_not_of(' ');
-  if (strt != std::string::npos)
-    {
-    completionPrefix = columnData.substr(strt);
-    }
-
-  cmServerCompleter completer(this->CMakeInstance, completionSnp, true);
-
-  auto result = completer.Complete(completionSnp,
-                       desired.second, completionPrefix,
-                       newToParse, fileColumn);
-
-  if (!result.isMember("context_origin"))
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  if (!result["context_origin"].isMember("matcher"))
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto varName = result["context_origin"]["matcher"].asString();
-
-  auto snps = this->CMakeInstance->GetState()->GetWriters(completionSnp, varName);
-
-  if (snps.empty())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  cmState::Snapshot snp = snps.front();
-
-  cmListFileContext lfc;
-  lfc.FilePath = snp.GetExecutionListFile();
-  lfc.Line = snp.GetStartingPoint();
-  auto it = this->Snapshots.lower_bound(lfc);
-
-  if (it == this->Snapshots.end())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  if (it->second.empty())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  ++it;
-
-  Json::Value obj = Json::objectValue;
-  obj["def_match"] = varName;
-  obj["def_origin"] = (int)it->first.Line - 1;
-  this->Server->WriteResponse(obj);
-}
-#endif
