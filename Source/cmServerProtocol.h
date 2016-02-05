@@ -96,6 +96,9 @@ private:
   cmServerResponse ProcessContent(const cmServerRequest &request);
   cmServerResponse ProcessParse(const cmServerRequest &request);
   cmServerResponse ProcessContextualHelp(const cmServerRequest &request);
+  cmServerResponse ProcessContentDiff(const cmServerRequest &request);
+  cmServerResponse ProcessCodeComplete(const cmServerRequest &request);
+  cmServerResponse ProcessContextWriters(const cmServerRequest &request);
 
   std::pair<cmState::Snapshot, long>
   GetSnapshotAndStartLine(std::string filePath,
@@ -116,45 +119,7 @@ private:
 
   Json::Value GenerateContextualHelp(std::string const& context,
                       std::string const& help_key);
-#if 0
-  void processRequest(const std::string& json);
 
-private:
-  void ProcessHandshake(const std::string& protocolVersion);
-  void ProcessVersion();
-  void ProcessBuildsystem();
-  void ProcessTargetInfo(std::string tgtName,
-                         std::string config,
-                         const char* language);
-  void ProcessFileInfo(std::string tgtName,
-                       std::string config,
-                       std::string file_path);
-  void ProcessContent(std::string filePath, long fileLine,
-                      DifferentialFileContent diff, std::string matcher);
-  void ProcessParse(std::string file_path, DifferentialFileContent diff);
-  void ProcessContextualHelp(std::string filePath,
-                             long fileLine, long fileColumn,
-                             std::string fileContent);
-  void ProcessContentDiff(std::string filePath1, long fileLine1,
-                          std::string filePath2, long fileLine2,
-                          std::pair<DifferentialFileContent,
-                                    DifferentialFileContent> diffs);
-  void ProcessCodeComplete(std::string filePath,
-                           long fileLine, long fileColumn,
-                           DifferentialFileContent diff);
-  void ProcessContextWriters(std::string filePath,
-                           long fileLine, long fileColumn,
-                           DifferentialFileContent diff);
-
-private:
-
-
-
-  void writeContent(cmState::Snapshot snp, std::string matcher);
-
-#endif
-
-private:
   cmMetadataServer* Server;
   cmake *CMakeInstance;
   std::string m_buildDir;
