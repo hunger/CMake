@@ -12,13 +12,59 @@
 
 #pragma once
 
-#include "cmState.h"
+// #include "cmState.h"
 #include "cmListFileCache.h"
+
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+# include "cm_jsoncpp_writer.h"
+#endif
 
 class cmake;
 class cmMetadataServer;
 
 struct DifferentialFileContent;
+
+class cmServerRequest {
+public:
+  cmServerRequest(const std::string &t, const std::string &c, const Json::Value &d);
+
+  const std::string Type;
+  const std::string Cookie;
+  const Json::Value Data;
+};
+
+class cmServerResponse {
+public:
+  explicit cmServerResponse(const cmServerRequest &request);
+  static cmServerResponse errorResponse(const cmServerRequest &request, const std::string &message);
+  static cmServerResponse dataResponse(const cmServerRequest &request, const Json::Value &data);
+
+  void setData(const Json::Value &data);
+  void setError(const std::string &message);
+
+  bool IsComplete() const;
+  bool IsError() const;
+  std::string ErrorMessage() const;
+  Json::Value Data() const;
+
+  const std::string Type;
+  const std::string Cookie;
+
+private:
+  enum PayLoad { UNKNOWN, ERROR, DATA };
+  PayLoad mPayload = UNKNOWN;
+  std::string mErrorMessage;
+  Json::Value mData;
+};
+
+class cmServerProtocol
+{
+public:
+  virtual ~cmServerProtocol();
+
+  virtual std::pair<int, int> protocolVersion() const = 0;
+  virtual const cmServerResponse process(const cmServerRequest &request) = 0;
+};
 
 struct OrderFileThenLine
 {
@@ -32,12 +78,45 @@ struct OrderFileThenLine
   }
 };
 
-class cmServerProtocol
+class cmServerProtocol0_1 : public cmServerProtocol
 {
 public:
-  cmServerProtocol(cmMetadataServer* server, std::string buildDir);
-  ~cmServerProtocol();
+  cmServerProtocol0_1(cmMetadataServer* server, std::string buildDir);
+  ~cmServerProtocol0_1() override;
 
+  std::pair<int, int> protocolVersion() const override;
+  const cmServerResponse process(const cmServerRequest &request) override;
+
+private:
+  cmServerResponse ProcessHandshake(const cmServerRequest &request);
+  cmServerResponse ProcessVersion(const cmServerRequest &request);
+  cmServerResponse ProcessBuildSystem(const cmServerRequest &request);
+  cmServerResponse ProcessTargetInfo(const cmServerRequest &request);
+  cmServerResponse ProcessFileInfo(const cmServerRequest &request);
+  cmServerResponse ProcessContent(const cmServerRequest &request);
+  cmServerResponse ProcessParse(const cmServerRequest &request);
+  cmServerResponse ProcessContextualHelp(const cmServerRequest &request);
+
+  std::pair<cmState::Snapshot, long>
+  GetSnapshotAndStartLine(std::string filePath,
+                          long fileLine,
+                          DifferentialFileContent diff);
+  std::pair<cmState::Snapshot, cmListFileFunction>
+  GetDesiredSnapshot(std::vector<std::string> const& editorLines,
+                     long startLine, cmState::Snapshot snp,
+                     long fileLine, bool completionMode = false);
+  std::pair<cmState::Snapshot, long>
+  GetSnapshotContext(std::string filePath, long fileLine);
+
+  bool IsNotExecuted(std::string filePath, long fileLine);
+  Json::Value EmitTypedIdentifier(std::string const& commandName,
+                                  std::vector<cmListFileArgument> args,
+                                  size_t argIndex);
+  Json::Value GenerateContent(cmState::Snapshot snp, std::string matcher);
+
+  Json::Value GenerateContextualHelp(std::string const& context,
+                      std::string const& help_key);
+#if 0
   void processRequest(const std::string& json);
 
 private:
@@ -68,28 +147,12 @@ private:
                            DifferentialFileContent diff);
 
 private:
-  std::pair<cmState::Snapshot, long>
-  GetSnapshotAndStartLine(std::string filePath,
-                          long fileLine,
-                          DifferentialFileContent diff);
 
-  std::pair<cmState::Snapshot, cmListFileFunction>
-  GetDesiredSnapshot(std::vector<std::string> const& editorLines,
-                     long startLine, cmState::Snapshot snp,
-                     long fileLine, bool completionMode = false);
 
-  bool IsNotExecuted(std::string filePath, long fileLine);
 
   void writeContent(cmState::Snapshot snp, std::string matcher);
 
-  std::pair<cmState::Snapshot, long>
-  GetSnapshotContext(std::string filePath, long fileLine);
-
-  bool WriteContextualHelp(std::string const& context,
-                      std::string const& help_key);
-  bool EmitTypedIdentifier(std::string const& commandName,
-                           std::vector<cmListFileArgument> args,
-                           size_t argIndex);
+#endif
 
 private:
   cmMetadataServer* Server;

@@ -21,6 +21,7 @@
 #endif
 
 class cmServerProtocol;
+class cmServerResponse;
 
 class cmMetadataServer
 {
@@ -43,7 +44,7 @@ public:
 
   void handleData(std::string const& data);
 
-  void WriteResponse(Json::Value const& jsonValue);
+  void WriteProgress(const std::string& progress);
 
   void SetState(ServerState state)
   {
@@ -55,7 +56,13 @@ public:
     return this->State;
   }
 
+  // Todo: Make private!
+  void WriteJsonObject(Json::Value const& jsonValue);
+
 private:
+  void WriteResponse(const cmServerResponse &response);
+  void WriteParseError(const std::string &message);
+
   cmServerProtocol* Protocol;
   std::vector<std::string> mQueue;
   
