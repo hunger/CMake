@@ -28,78 +28,183 @@
 # include "cm_jsoncpp_reader.h"
 #endif
 
-cmServerProtocol::cmServerProtocol(cmMetadataServer* server, std::string buildDir)
+void getUnreachable(Json::Value& unreachable,
+                    DifferentialFileContent const& diff,
+                    std::map<long, long> const& nx)
+{
+  auto& chunks = diff.Chunks;
+
+  auto chunkIt = chunks.begin();
+
+  for (auto it = nx.begin(); it != nx.end(); ++it)
+    {
+    chunkIt = std::lower_bound(chunkIt, chunks.end(), it->first,
+                       [](const Chunk& lhs, long rhs)
+      {
+        return lhs.OrigStart < rhs;
+      });
+    if (chunkIt == chunks.end() || chunkIt->OrigStart != it->first)
+      {
+      --chunkIt;
+      }
+    auto theLine = chunkIt->NewStart;
+    while (chunkIt->NumCommon + chunkIt->NumAdded == 0) // Should be NumRemoved?
+      {
+      ++chunkIt;
+      }
+    assert(theLine == chunkIt->NewStart);
+    if (chunkIt->OrigStart > it->first)
+      {
+      continue;
+      }
+
+    long offset = chunkIt->NewStart - chunkIt->OrigStart;
+
+    Json::Value elem = Json::objectValue;
+    elem["begin"] = (int)(it->first + offset);
+    elem["end"] = (int)(it->second + offset);
+    unreachable.append(elem);
+    }
+}
+
+cmServerRequest::cmServerRequest(const std::string &t, const std::string &c, const Json::Value &d)
+  : Type(t), Cookie(c), Data(d)
+{
+
+}
+
+cmServerResponse::cmServerResponse(const cmServerRequest &request)
+  : Type(request.Type), Cookie(request.Cookie)
+{
+
+}
+
+cmServerResponse cmServerResponse::errorResponse(const cmServerRequest &request, const std::__cxx11::string &message)
+{
+  cmServerResponse response(request);
+  response.setError(message);
+  return response;
+}
+
+cmServerResponse cmServerResponse::dataResponse(const cmServerRequest &request, const Json::Value &data)
+{
+  cmServerResponse response(request);
+  response.setData(data);
+  return response;
+}
+
+void cmServerResponse::setData(const Json::Value &data)
+{
+  assert(mPayload == UNKNOWN);
+  for (auto i : data.getMemberNames())
+    {
+    if (i == "cookie" || i == "type")
+      {
+      setError("Response contains cookie or type field.");
+      return;
+      }
+    }
+  mPayload = DATA;
+  mData = data;
+}
+
+void cmServerResponse::setError(const std::string &message)
+{
+  assert(mPayload == UNKNOWN);
+  mPayload = ERROR;
+  mErrorMessage = message;
+}
+
+bool cmServerResponse::IsComplete() const
+{
+  return mPayload != UNKNOWN;
+}
+
+bool cmServerResponse::IsError() const
+{
+  assert(mPayload != UNKNOWN);
+  return mPayload == ERROR;
+}
+
+std::string cmServerResponse::ErrorMessage() const
+{
+  if (mPayload == ERROR)
+    return mErrorMessage;
+  else
+    return std::string();
+}
+
+Json::Value cmServerResponse::Data() const
+{
+  assert(mPayload != UNKNOWN);
+  return mData;
+}
+
+cmServerProtocol::~cmServerProtocol() { }
+
+cmServerProtocol0_1::cmServerProtocol0_1(cmMetadataServer* server, std::string buildDir)
   : Server(server), CMakeInstance(0), m_buildDir(buildDir)
 {
 
 }
 
-cmServerProtocol::~cmServerProtocol()
+cmServerProtocol0_1::~cmServerProtocol0_1()
 {
   delete this->CMakeInstance;
 }
 
-void cmServerProtocol::processRequest(const std::string& json)
+std::pair<int, int> cmServerProtocol0_1::protocolVersion() const
 {
-  Json::Reader reader;
-  Json::Value value;
-  reader.parse(json, value);
+  return std::make_pair(0, 1);
+}
 
-  if (this->Server->GetState() == cmMetadataServer::Started)
+const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &request)
+{
+  switch (Server->GetState())
+  {
+  case cmMetadataServer::Uninitialized:
+    break;
+  case cmMetadataServer::Started:
     {
-    if (value["type"] == "handshake")
+    if (request.Type == "handshake")
       {
-      this->ProcessHandshake(value["protocolVersion"].asString());
+      return ProcessHandshake(request);
       }
+    break;
     }
-  if (this->Server->GetState() == cmMetadataServer::ProcessingRequests)
+  case cmMetadataServer::Initializing:
+    break;
+  case cmMetadataServer::ProcessingRequests:
     {
-    if (value["type"] == "version")
+    if (request.Type == "version")
       {
-      this->ProcessVersion();
+      return ProcessVersion(request);
       }
-    if (value["type"] == "buildsystem")
+    if (request.Type == "buildsystem")
       {
-      this->ProcessBuildsystem();
+      return ProcessBuildSystem(request);
       }
-    if (value["type"] == "target_info")
+    if (request.Type == "target_info")
       {
-      const char* language = 0;
-      if (value.isMember("language"))
-        {
-        language = value["language"].asCString();
-        }
-      this->ProcessTargetInfo(
-            value["target_name"].asString(),
-            value["config"].asString(),
-            language);
+      return ProcessTargetInfo(request);
       }
-    if (value["type"] == "file_info")
+    if (request.Type == "file_info")
       {
-      this->ProcessFileInfo(
-            value["target_name"].asString(),
-            value["config"].asString(),
-            value["file_path"].asString());
+      return ProcessFileInfo(request);
       }
-    if (value["type"] == "content")
+    if (request.Type == "content")
       {
-      auto diff = cmServerDiff::GetDiff(value);
-      this->ProcessContent(
-        value["file_path"].asString(),
-        value["file_line"].asInt(), diff, value["matcher"].asString());
+      return ProcessContent(request);
       }
-    if (value["type"] == "parse")
+    if (request.Type == "parse")
       {
-      auto diff = cmServerDiff::GetDiff(value);
-      this->ProcessParse(
-            value["file_path"].asString(), diff);
+      return ProcessParse(request);
       }
-    if (value["type"] == "contextual_help")
+    if (request.Type == "contextual_help")
       {
-        this->ProcessContextualHelp(value["file_path"].asString(),
-            value["file_line"].asInt(), value["file_column"].asInt(),
-            value["file_content"].asString());
+      return ProcessContextualHelp(request);
       }
+#if 0
     if (value["type"] == "content_diff")
       {
       auto diffs = cmServerDiff::GetDiffs(value);
@@ -128,23 +233,26 @@ void cmServerProtocol::processRequest(const std::string& json)
             value["file_column"].asInt(),
             diff);
       }
+#endif
+    break;
     }
+  }
+
+  return cmServerResponse::errorResponse(request, "Not implemented!");
 }
 
-void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
+cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &request)
 {
-  // TODO: Handle version.
-  (void)protocolVersion;
-
   this->Server->SetState(cmMetadataServer::Initializing);
+  assert(!CMakeInstance);
+
   this->CMakeInstance = new cmake;
   this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
   std::set<std::string> emptySet;
   if(!this->CMakeInstance->GetState()->LoadCache(m_buildDir.c_str(),
                                                  true, emptySet, emptySet))
     {
-    // Error;
-    return;
+    return cmServerResponse::errorResponse(request, "Failed to load cache in build directory.");
     }
 
   const char* genName =
@@ -152,8 +260,7 @@ void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
           ->GetInitializedCacheValue("CMAKE_GENERATOR");
   if (!genName)
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "No CMAKE_GENERATOR value found in cache.");
     }
 
   const char* sourceDir =
@@ -161,8 +268,7 @@ void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
           ->GetInitializedCacheValue("CMAKE_HOME_DIRECTORY");
   if (!sourceDir)
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "No CMAKE_HOME_DIRECTORY value found in cache.");
     }
 
   this->CMakeInstance->SetHomeDirectory(sourceDir);
@@ -179,7 +285,7 @@ void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
   Json::Value obj = Json::objectValue;
   obj["progress"] = "initialized";
 
-  this->Server->WriteResponse(obj);
+  this->Server->WriteJsonObject(obj);
 
   // First not? But some other mode that aborts after ActualConfigure
   // and creates snapshots?
@@ -187,17 +293,16 @@ void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
 
   obj["progress"] = "configured";
 
-  this->Server->WriteResponse(obj);
+  this->Server->WriteJsonObject(obj);
 
   if (!this->CMakeInstance->GetGlobalGenerator()->Compute())
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "Failed to run generator.");
     }
 
   obj["progress"] = "computed";
 
-  this->Server->WriteResponse(obj);
+  this->Server->WriteJsonObject(obj);
 
   cmState* state = this->CMakeInstance->GetState();
 
@@ -218,18 +323,18 @@ void cmServerProtocol::ProcessHandshake(std::string const& protocolVersion)
 
   this->Server->SetState(cmMetadataServer::ProcessingRequests);
 
-  this->Server->WriteResponse(idleObj);
+  return cmServerResponse::dataResponse(request, idleObj);
 }
 
-void cmServerProtocol::ProcessVersion()
+cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
 {
-  Json::Value obj = Json::objectValue;
-  obj["version"] = CMake_VERSION;
+    Json::Value obj = Json::objectValue;
+    obj["version"] = CMake_VERSION;
 
-  this->Server->WriteResponse(obj);
+    return cmServerResponse::dataResponse(request, obj);
 }
 
-void cmServerProtocol::ProcessBuildsystem()
+cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &request)
 {
   Json::Value root = Json::objectValue;
   Json::Value& obj = root["buildsystem"] = Json::objectValue;
@@ -300,13 +405,20 @@ void cmServerProtocol::ProcessBuildsystem()
       targets.append(target);
       }
     }
-  this->Server->WriteResponse(root);
+
+  return cmServerResponse::dataResponse(request, root);
 }
 
-void cmServerProtocol::ProcessTargetInfo(std::string tgtName,
-                                         std::string config,
-                                         const char* language)
+cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &request)
 {
+  std::string tgtName = request.Data["target_name"].asString();
+  std::string config = request.Data["config"].asString();
+  const char* language = nullptr;
+  if (request.Data.isMember("language"))
+    {
+    language = request.Data["language"].asCString();
+    }
+
   Json::Value obj = Json::objectValue;
   Json::Value& root = obj["target_info"] = Json::objectValue;
 
@@ -315,8 +427,7 @@ void cmServerProtocol::ProcessTargetInfo(std::string tgtName,
 
   if (!tgt)
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "Failed to find target.");
     }
 
   root["target_name"] = tgt->GetName();
@@ -407,20 +518,22 @@ void cmServerProtocol::ProcessTargetInfo(std::string tgtName,
     {
     target_includes.append(dir);
     }
-  this->Server->WriteResponse(obj);
+
+  return cmServerResponse::dataResponse(request, obj);
 }
 
-void cmServerProtocol::ProcessFileInfo(std::string tgtName,
-                                       std::string config,
-                                       std::string file_path)
+cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &request)
 {
+  const std::string tgtName = request.Data["target_name"].asString();
+  const std::string config = request.Data["config"].asString();
+  const std::string file_path = request.Data["file_path"].asString();
+
   auto tgt =
       this->CMakeInstance->GetGlobalGenerator()->FindGeneratorTarget(tgtName);
 
   if (!tgt)
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "Target not found.");
     }
 
   Json::Value obj = Json::objectValue;
@@ -440,20 +553,273 @@ void cmServerProtocol::ProcessFileInfo(std::string tgtName,
 
   if (!file)
     {
-    // Error
-    return;
+    return cmServerResponse::errorResponse(request, "File not found.");
     }
 
   // TODO: Get the includes/defines/flags for the file for this target.
   // There does not seem to be suitable API for that yet.
 
-  this->Server->WriteResponse(obj);
+  return cmServerResponse::dataResponse(request, obj);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &request)
+{
+  const std::string filePath = request.Data["file_path"].asString();
+  const long fileLine = request.Data["file_line"].asInt();
+  const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
+  const std::string matcher = request.Data["matcher"].asString();
+
+  if (fileLine < 0)
+    {
+    return cmServerResponse::errorResponse(request, "file_line is a negative integer.");
+    }
+
+  if (this->IsNotExecuted(filePath, fileLine))
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto res = this->GetSnapshotAndStartLine(filePath, fileLine, diff);
+  if (res.second < 0)
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  auto desired =
+      this->GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine);
+  cmState::Snapshot contentSnp = desired.first;
+  if (!contentSnp.IsValid())
+    {
+    Json::Value obj = Json::objectValue;
+    obj["content_result"] = "unexecuted";
+    return cmServerResponse::dataResponse(request, obj);
+    }
+
+  return cmServerResponse::dataResponse(request, GenerateContent(contentSnp, matcher));
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &request)
+{
+  const std::string file_path = request.Data["file_path"].asString();
+  DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
+
+  Json::Value obj = Json::objectValue;
+  Json::Value& root = obj["parsed"] = Json::objectValue;
+
+  cmServerParser p(this->CMakeInstance->GetState(),
+                   file_path, cmSystemTools::GetCMakeRoot());
+  root["tokens"] = p.Parse(diff);
+
+  auto& unreachable = root["unreachable"] = Json::arrayValue;
+
+  auto nx = this->CMakeInstance->GetState()->GetNotExecuted(file_path);
+
+  getUnreachable(unreachable, diff, nx);
+
+  return cmServerResponse::dataResponse(request, obj);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerRequest &request)
+{
+  const std::string filePath = request.Data["file_path"].asString();
+  const long fileLine = request.Data["file_line"].asInt();
+  const long fileColumn = request.Data["file_column"].asInt();
+  const std::string fileContent = request.Data["file_content"].asString();
+
+  if (fileLine <= 0)
+    {
+    return cmServerResponse::errorResponse(request, "file_line is <= 0.");
+    }
+
+  std::string content;
+  {
+  std::stringstream ss(fileContent);
+
+  long desiredLines = fileLine;
+  for (std::string line;
+       std::getline(ss, line, '\n') && desiredLines > 0;
+       --desiredLines)
+    {
+    content += line + "\n";
+    }
+  }
+
+  cmListFile listFile;
+
+  if (!listFile.ParseString(
+        content.c_str(),
+        filePath.c_str(),
+        this->CMakeInstance->GetGlobalGenerator()->GetMakefiles()[0]))
+    {
+    return cmServerResponse::errorResponse(request, "Failed to parse.");
+    }
+
+  const size_t numberFunctions = listFile.Functions.size();
+  size_t funcIndex = 0;
+  for( ; funcIndex < numberFunctions; ++funcIndex)
+    {
+    if (listFile.Functions[funcIndex].Line > fileLine)
+      {
+      Json::Value obj = Json::objectValue;
+      Json::Value& contextual_help =
+          obj["contextual_help"] = Json::objectValue;
+
+      contextual_help["nocontext"] = true;
+
+      return cmServerResponse::dataResponse(request, obj);
+      }
+
+    const long closeParenLine = listFile.Functions[funcIndex].CloseParenLine;
+
+    if (listFile.Functions[funcIndex].Line <= fileLine
+        && closeParenLine >= fileLine)
+      {
+      auto args = listFile.Functions[funcIndex].Arguments;
+      const size_t numberArgs = args.size();
+      size_t argIndex = 0;
+
+      for( ; argIndex < numberArgs; ++argIndex)
+        {
+        if (args[argIndex].Delim == cmListFileArgument::Bracket)
+          {
+          continue;
+          }
+
+        const bool lastArg = (argIndex == numberArgs - 1);
+
+        if (lastArg
+            || (argIndex != numberArgs
+                && (args[argIndex + 1].Line > fileLine
+                    || args[argIndex + 1].Column > fileColumn)))
+          {
+          if (args[argIndex].Line > fileLine ||
+              args[argIndex].Column > fileColumn)
+            {
+            return cmServerResponse::dataResponse(request, GenerateContextualHelp("command",
+                                                                                  listFile.Functions[funcIndex].Name));
+            }
+          if (args[argIndex].Delim == cmListFileArgument::Unquoted)
+            {
+            auto endPos = args[argIndex].Column + args[argIndex].Value.size();
+            if (args[argIndex].Line == fileLine
+                && args[argIndex].Column <= fileColumn
+                && (long)endPos >= fileColumn)
+              {
+              auto inPos = fileColumn - args[argIndex].Column;
+              auto closePos = args[argIndex].Value.find('}', inPos);
+              auto openPos = args[argIndex].Value.rfind('{', inPos);
+              if (openPos != std::string::npos)
+                {
+                if (openPos > 0 && args[argIndex].Value[openPos - 1] == '$')
+                  {
+                  auto endRel = closePos == std::string::npos
+                        ? closePos - openPos - 1 : inPos - openPos - 1;
+                  std::string relevant =
+                      args[argIndex].Value.substr(openPos + 1, endRel);
+                  Json::Value help = GenerateContextualHelp("variable", relevant);
+                  if (!help.isNull())
+                    {
+                    return cmServerResponse::dataResponse(request, help);
+                    }
+                  }
+                }
+              Json::Value help = this->EmitTypedIdentifier(listFile.Functions[funcIndex].Name,
+                                                           args, argIndex);
+              if (!help.isNull())
+                {
+                return cmServerResponse::dataResponse(request, help);
+                }
+              }
+            break;
+            }
+
+          long fileLineDiff = fileLine - args[argIndex].Line;
+
+          long fileColumnDiff = fileColumn - args[argIndex].Column;
+
+          bool breakOut = false;
+
+          size_t argPos = 0;
+          while (fileLineDiff != 0)
+            {
+            argPos = args[argIndex].Value.find('\n', argPos);
+            if (argPos == std::string::npos)
+              {
+              breakOut = true;
+              break;
+              }
+            ++argPos;
+            fileColumnDiff = 0;
+            --fileLineDiff;
+            }
+          if (breakOut)
+            {
+            break;
+            }
+
+          assert(fileLineDiff == 0);
+
+          size_t sentinal = args[argIndex].Value.find('\n', argPos);
+          if (sentinal == std::string::npos)
+            {
+            sentinal = args[argIndex].Value.size() - argPos;
+            if ((long)sentinal < fileColumn)
+              {
+              break;
+              }
+            Json::Value help = this->EmitTypedIdentifier(listFile.Functions[funcIndex].Name,
+                                       args, argIndex);
+            if (!help.isNull())
+              {
+              return cmServerResponse::dataResponse(request, help);
+              }
+            }
+
+          if (sentinal < argPos)
+            {
+            // In between args?
+            break;
+            }
+
+          long inPos = fileColumnDiff;
+
+          std::string relevant =
+              args[argIndex].Value.substr(argPos, sentinal - argPos);
+
+          auto closePos = relevant.find('}', inPos);
+          auto openPos = relevant.rfind('{', inPos);
+          if (openPos != std::string::npos)
+            {
+            if (openPos > 0 && relevant[openPos - 1] == '$')
+              {
+              auto endRel = closePos == std::string::npos
+                    ? closePos - openPos - 1 : inPos - openPos - 1;
+              relevant = relevant.substr(openPos + 1, endRel);
+              Json::Value help = GenerateContextualHelp("variable", relevant);
+              if (!help.isNull())
+                return cmServerResponse::dataResponse(request, help);
+              else
+                break;
+              }
+            }
+          break;
+          }
+        }
+
+      return cmServerResponse::dataResponse(request, GenerateContextualHelp("command", listFile.Functions[funcIndex].Name));
+      }
+    }
+  return cmServerResponse::dataResponse(request, Json::objectValue);
 }
 
 std::pair<cmState::Snapshot, long>
-cmServerProtocol::GetSnapshotAndStartLine(std::string filePath,
-                                           long fileLine,
-                                           DifferentialFileContent diff)
+cmServerProtocol0_1::GetSnapshotAndStartLine(std::string filePath,
+                                             long fileLine,
+                                             DifferentialFileContent diff)
 {
   assert(fileLine > 0);
 
@@ -530,7 +896,7 @@ cmServerProtocol::GetSnapshotAndStartLine(std::string filePath,
 }
 
 std::pair<cmState::Snapshot, cmListFileFunction>
-cmServerProtocol::GetDesiredSnapshot(
+cmServerProtocol0_1::GetDesiredSnapshot(
     std::vector<std::string> const& editorLines, long startLine,
     cmState::Snapshot snp, long fileLine, bool completionMode)
 {
@@ -564,74 +930,8 @@ cmServerProtocol::GetDesiredSnapshot(
   return mf.ReadCommands(listFile.Functions, newToParse);
 }
 
-void cmServerProtocol::writeContent(cmState::Snapshot snp, std::string matcher)
-{
-  Json::Value obj = Json::objectValue;
-
-  Json::Value& content = obj["content"] = Json::objectValue;
-
-  std::vector<std::string> keys = snp.ClosureKeys();
-  for (const auto& p: keys)
-    {
-    if (p.find(matcher) == 0)
-      content[p] = snp.GetDefinition(p);
-    }
-
-  this->Server->WriteResponse(obj);
-}
-
-bool cmServerProtocol::IsNotExecuted(std::string filePath, long fileLine)
-{
-  auto nx = this->CMakeInstance->GetState()->GetNotExecuted(filePath);
-  for (auto it = nx.begin(); it != nx.end(); ++it)
-    {
-    if (fileLine >= it->first && fileLine < it->second)
-      {
-      return true;
-      }
-    }
-  return false;
-}
-
-void cmServerProtocol::ProcessContent(std::string filePath, long fileLine,
-                                      DifferentialFileContent diff,
-                                      std::string matcher)
-{
-  assert(fileLine > 0);
-  if (this->IsNotExecuted(filePath, fileLine))
-    {
-    Json::Value obj = Json::objectValue;
-
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto res = this->GetSnapshotAndStartLine(filePath, fileLine, diff);
-  if (res.second < 0)
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  auto desired =
-      this->GetDesiredSnapshot(diff.EditorLines, res.second, res.first, fileLine);
-  cmState::Snapshot contentSnp = desired.first;
-  if (!contentSnp.IsValid())
-    {
-    Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
-    this->Server->WriteResponse(obj);
-    return;
-    }
-
-  this->writeContent(contentSnp, matcher);
-}
-
 std::pair<cmState::Snapshot, long>
-cmServerProtocol::GetSnapshotContext(std::string filePath, long fileLine)
+cmServerProtocol0_1::GetSnapshotContext(std::string filePath, long fileLine)
 {
   cmListFileContext lfc;
   lfc.FilePath = filePath;
@@ -675,66 +975,37 @@ cmServerProtocol::GetSnapshotContext(std::string filePath, long fileLine)
   return std::make_pair(snp, startingPoint);
 }
 
-void getUnreachable(Json::Value& unreachable,
-                    DifferentialFileContent const& diff,
-                    std::map<long, long> const& nx)
+bool cmServerProtocol0_1::IsNotExecuted(std::string filePath, long fileLine)
 {
-  auto& chunks = diff.Chunks;
-
-  auto chunkIt = chunks.begin();
-
+  auto nx = this->CMakeInstance->GetState()->GetNotExecuted(filePath);
   for (auto it = nx.begin(); it != nx.end(); ++it)
     {
-    chunkIt = std::lower_bound(chunkIt, chunks.end(), it->first,
-                       [](const Chunk& lhs, long rhs)
+    if (fileLine >= it->first && fileLine < it->second)
       {
-        return lhs.OrigStart < rhs;
-      });
-    if (chunkIt == chunks.end() || chunkIt->OrigStart != it->first)
-      {
-      --chunkIt;
+      return true;
       }
-    auto theLine = chunkIt->NewStart;
-    while (chunkIt->NumCommon + chunkIt->NumAdded == 0) // Should be NumRemoved?
-      {
-      ++chunkIt;
-      }
-    assert(theLine == chunkIt->NewStart);
-    if (chunkIt->OrigStart > it->first)
-      {
-      continue;
-      }
-
-    long offset = chunkIt->NewStart - chunkIt->OrigStart;
-
-    Json::Value elem = Json::objectValue;
-    elem["begin"] = (int)(it->first + offset);
-    elem["end"] = (int)(it->second + offset);
-    unreachable.append(elem);
     }
+  return false;
 }
 
-void cmServerProtocol::ProcessParse(std::string file_path,
-                                    DifferentialFileContent diff)
+Json::Value cmServerProtocol0_1::GenerateContent(cmState::Snapshot snp, std::string matcher)
 {
   Json::Value obj = Json::objectValue;
-  Json::Value& root = obj["parsed"] = Json::objectValue;
 
-  cmServerParser p(this->CMakeInstance->GetState(),
-                   file_path, cmSystemTools::GetCMakeRoot());
-  root["tokens"] = p.Parse(diff);
+  Json::Value& content = obj["content"] = Json::objectValue;
 
-  auto& unreachable = root["unreachable"] = Json::arrayValue;
+  std::vector<std::string> keys = snp.ClosureKeys();
+  for (const auto& p: keys)
+    {
+    if (p.find(matcher) == 0)
+      content[p] = snp.GetDefinition(p);
+    }
 
-  auto nx = this->CMakeInstance->GetState()->GetNotExecuted(file_path);
-
-  getUnreachable(unreachable, diff, nx);
-
-  this->Server->WriteResponse(obj);
+  return obj;
 }
 
-bool cmServerProtocol::WriteContextualHelp(std::string const& context,
-                                           std::string const& help_key)
+Json::Value cmServerProtocol0_1::GenerateContextualHelp(const std::string &context,
+                                                        const std::string &help_key)
 {
   std::string pdir = cmSystemTools::GetCMakeRoot();
   pdir += "/Help/" + context + "/";
@@ -743,7 +1014,7 @@ bool cmServerProtocol::WriteContextualHelp(std::string const& context,
   std::string helpFile = pdir + relevant + ".rst";
   if(!cmSystemTools::FileExists(helpFile.c_str(), true))
     {
-    return false;
+    return Json::nullValue;
     }
   Json::Value obj = Json::objectValue;
 
@@ -753,20 +1024,18 @@ bool cmServerProtocol::WriteContextualHelp(std::string const& context,
   contextual_help["context"] = context;
   contextual_help["help_key"] = relevant;
 
-  this->Server->WriteResponse(obj);
-
-  return true;
+  return obj;
 }
 
-bool cmServerProtocol::EmitTypedIdentifier(std::string const& commandName,
-                         std::vector<cmListFileArgument> args,
-                         size_t argIndex)
+Json::Value cmServerProtocol0_1::EmitTypedIdentifier(const std::string &commandName,
+                                                     std::vector<cmListFileArgument> args,
+                                                     size_t argIndex)
 {
   cmCommand* proto =
       this->CMakeInstance->GetState()->GetCommand(commandName);
   if(!proto)
     {
-    return false;
+    return Json::nullValue;
     }
 
   std::vector<std::string> argStrings;
@@ -810,193 +1079,10 @@ bool cmServerProtocol::EmitTypedIdentifier(std::string const& commandName,
     return false;
     }
 
-  return this->WriteContextualHelp(context, value);
+  return this->GenerateContextualHelp(context, value);
 }
 
-void cmServerProtocol::ProcessContextualHelp(std::string filePath,
-                                             long fileLine, long fileColumn,
-                                             std::string fileContent)
-{
-  assert(fileLine > 0);
-
-  std::string content;
-  {
-  std::stringstream ss(fileContent);
-
-  long desiredLines = fileLine;
-  for (std::string line;
-       std::getline(ss, line, '\n') && desiredLines > 0;
-       --desiredLines)
-    {
-    content += line + "\n";
-    }
-  }
-
-  cmListFile listFile;
-
-  if (!listFile.ParseString(
-        content.c_str(),
-        filePath.c_str(),
-        this->CMakeInstance->GetGlobalGenerator()->GetMakefiles()[0]))
-    {
-    // Error
-    return;
-    }
-
-  const size_t numberFunctions = listFile.Functions.size();
-  size_t funcIndex = 0;
-  for( ; funcIndex < numberFunctions; ++funcIndex)
-    {
-    if (listFile.Functions[funcIndex].Line > fileLine)
-      {
-      Json::Value obj = Json::objectValue;
-      Json::Value& contextual_help =
-          obj["contextual_help"] = Json::objectValue;
-
-      contextual_help["nocontext"] = true;
-
-      this->Server->WriteResponse(obj);
-      break;
-      }
-
-    const long closeParenLine = listFile.Functions[funcIndex].CloseParenLine;
-
-    if (listFile.Functions[funcIndex].Line <= fileLine
-        && closeParenLine >= fileLine)
-      {
-      auto args = listFile.Functions[funcIndex].Arguments;
-      const size_t numberArgs = args.size();
-      size_t argIndex = 0;
-
-      for( ; argIndex < numberArgs; ++argIndex)
-        {
-        if (args[argIndex].Delim == cmListFileArgument::Bracket)
-          {
-          continue;
-          }
-
-        const bool lastArg = (argIndex == numberArgs - 1);
-
-        if (lastArg
-            || (argIndex != numberArgs
-                && (args[argIndex + 1].Line > fileLine
-                    || args[argIndex + 1].Column > fileColumn)))
-          {
-          if (args[argIndex].Line > fileLine ||
-              args[argIndex].Column > fileColumn)
-            {
-            this->WriteContextualHelp("command",
-                                      listFile.Functions[funcIndex].Name);
-            return;
-            }
-          if (args[argIndex].Delim == cmListFileArgument::Unquoted)
-            {
-            auto endPos = args[argIndex].Column + args[argIndex].Value.size();
-            if (args[argIndex].Line == fileLine
-                && args[argIndex].Column <= fileColumn
-                && (long)endPos >= fileColumn)
-              {
-              auto inPos = fileColumn - args[argIndex].Column;
-              auto closePos = args[argIndex].Value.find('}', inPos);
-              auto openPos = args[argIndex].Value.rfind('{', inPos);
-              if (openPos != std::string::npos)
-                {
-                if (openPos > 0 && args[argIndex].Value[openPos - 1] == '$')
-                  {
-                  auto endRel = closePos == std::string::npos
-                        ? closePos - openPos - 1 : inPos - openPos - 1;
-                  std::string relevant =
-                      args[argIndex].Value.substr(openPos + 1, endRel);
-                  if (this->WriteContextualHelp("variable", relevant))
-                    return;
-                  }
-                }
-              if (this->EmitTypedIdentifier(listFile.Functions[funcIndex].Name,
-                                        args, argIndex))
-                {
-                return;
-                }
-              }
-            break;
-            }
-
-          long fileLineDiff = fileLine - args[argIndex].Line;
-
-          long fileColumnDiff = fileColumn - args[argIndex].Column;
-
-          bool breakOut = false;
-
-          size_t argPos = 0;
-          while (fileLineDiff != 0)
-            {
-            argPos = args[argIndex].Value.find('\n', argPos);
-            if (argPos == std::string::npos)
-              {
-              breakOut = true;
-              break;
-              }
-            ++argPos;
-            fileColumnDiff = 0;
-            --fileLineDiff;
-            }
-          if (breakOut)
-            {
-            break;
-            }
-
-          assert(fileLineDiff == 0);
-
-          size_t sentinal = args[argIndex].Value.find('\n', argPos);
-          if (sentinal == std::string::npos)
-            {
-            sentinal = args[argIndex].Value.size() - argPos;
-            if ((long)sentinal < fileColumn)
-              {
-              break;
-              }
-            if (this->EmitTypedIdentifier(listFile.Functions[funcIndex].Name,
-                                      args, argIndex))
-              {
-              return;
-              }
-            }
-
-          if (sentinal < argPos)
-            {
-            // In between args?
-            break;
-            }
-
-          long inPos = fileColumnDiff;
-
-          std::string relevant =
-              args[argIndex].Value.substr(argPos, sentinal - argPos);
-
-          auto closePos = relevant.find('}', inPos);
-          auto openPos = relevant.rfind('{', inPos);
-          if (openPos != std::string::npos)
-            {
-            if (openPos > 0 && relevant[openPos - 1] == '$')
-              {
-              auto endRel = closePos == std::string::npos
-                    ? closePos - openPos - 1 : inPos - openPos - 1;
-              relevant = relevant.substr(openPos + 1, endRel);
-              if (this->WriteContextualHelp("variable", relevant))
-                return;
-              else
-                break;
-              }
-            }
-          break;
-          }
-        }
-
-      this->WriteContextualHelp("command", listFile.Functions[funcIndex].Name);
-      return;
-      }
-    }
-}
-
+#if 0
 void cmServerProtocol::ProcessContentDiff(
     std::string filePath1, long fileLine1,
     std::string filePath2, long fileLine2,
@@ -1255,3 +1341,4 @@ void cmServerProtocol::ProcessContextWriters(std::string filePath,
   obj["def_origin"] = (int)it->first.Line - 1;
   this->Server->WriteResponse(obj);
 }
+#endif

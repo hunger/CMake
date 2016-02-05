@@ -17,7 +17,8 @@
 #include "cmVersionMacros.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-# include "cm_jsoncpp_writer.h"
+# include "cm_jsoncpp_value.h"
+# include "cm_jsoncpp_reader.h"
 #endif
 
 typedef struct {
@@ -83,7 +84,7 @@ cmMetadataServer::~cmMetadataServer() {
   uv_close((uv_handle_t *)&mStdin_pipe, NULL);
   uv_close((uv_handle_t *)&mStdout_pipe, NULL);
   uv_loop_close(mLoop);
-  delete this->Protocol;
+  delete Protocol;
 }
 
 void cmMetadataServer::PopOne()
@@ -93,8 +94,30 @@ void cmMetadataServer::PopOne()
     {
     return;
     }
-  this->Protocol->processRequest(mQueue.front());
+
+  Json::Reader reader;
+  Json::Value value;
+  const std::string input = mQueue.front();
   mQueue.erase(mQueue.begin());
+
+  if (!reader.parse(input, value))
+    {
+    WriteParseError("Failed to parse JSON input.");
+    return;
+    }
+
+  const cmServerRequest request(value["type"].asString(), value["cookie"].asString(), value);
+
+  if (request.Type == "")
+    {
+      cmServerResponse response(request);
+      response.setError("No type given in request.");
+      WriteResponse(response);
+      return;
+    }
+
+  cmServerResponse response(Protocol->process(request));
+  WriteResponse(response);
 }
 
 void cmMetadataServer::handleData(const std::string &data)
@@ -134,18 +157,16 @@ void cmMetadataServer::ServeMetadata(const std::string& buildDir)
 {
   this->State = Started;
 
-  Json::Value obj = Json::objectValue;
-  obj["progress"] = "process-started";
-  this->WriteResponse(obj);
+  WriteProgress("process-started");
 
-  this->Protocol = new cmServerProtocol(this, buildDir);
+  this->Protocol = new cmServerProtocol0_1(this, buildDir);
 
   uv_read_start((uv_stream_t*)&mStdin_pipe, alloc_buffer, read_stdin);
 
   uv_run(mLoop, UV_RUN_DEFAULT);
 }
 
-void cmMetadataServer::WriteResponse(const Json::Value& jsonValue)
+void cmMetadataServer::WriteJsonObject(const Json::Value& jsonValue)
 {
   Json::FastWriter writer;
 
@@ -155,4 +176,37 @@ void cmMetadataServer::WriteResponse(const Json::Value& jsonValue)
 
   this->Writing = true;
   write_data((uv_stream_t *)&mStdout_pipe, result, on_stdout_write);
+}
+
+void cmMetadataServer::WriteParseError(const std::__cxx11::string &message)
+{
+  Json::Value obj = Json::objectValue;
+  obj["type"] = "parseError";
+  obj["errorMessage"] = message;
+
+  WriteJsonObject(obj);
+}
+
+void cmMetadataServer::WriteProgress(const std::__cxx11::string &progress)
+{
+  Json::Value obj = Json::objectValue;
+  obj["type"] = "progress";
+  obj["progress"] = progress;
+  WriteJsonObject(obj);
+}
+
+void cmMetadataServer::WriteResponse(const cmServerResponse &response)
+{
+  assert(response.IsComplete());
+
+  Json::Value result = response.Data();
+  result["cookie"] = response.Cookie;
+  result["type"] = response.Type;
+  result["isError"] = response.IsError() ? "1" : "0";
+  if (response.IsError())
+    {
+    result["errorMessage"] = response.ErrorMessage();
+    }
+
+  WriteJsonObject(result);
 }
