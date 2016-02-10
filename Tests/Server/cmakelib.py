@@ -76,19 +76,25 @@ def initProc(cmakeCommand, build_dir):
 
   packet = waitForMessage(cmakeProcess)
 
-  if packet["progress"] != "initialized":
+  if packet["progressMessage"] != "initialized":
     print "Process error"
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
-  if packet["progress"] != "configured":
+  if packet["progressMessage"] != "configured":
     print "Process error"
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
-  if packet["progress"] != "computed":
+  if packet["progressMessage"] != "computed":
+    print "Process error"
+    sys.exit(1)
+
+  packet = waitForMessage(cmakeProcess)
+
+  if packet["progressMessage"] != "done":
     print "Process error"
     sys.exit(1)
 

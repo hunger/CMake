@@ -106,14 +106,14 @@ void cmMetadataServer::PopOne()
     return;
     }
 
-  const cmServerRequest request(value["type"].asString(), value["cookie"].asString(), value);
+  const cmServerRequest request(this, value["type"].asString(), value["cookie"].asString(), value);
 
   if (request.Type == "")
     {
-      cmServerResponse response(request);
-      response.setError("No type given in request.");
-      WriteResponse(response);
-      return;
+    cmServerResponse response(request);
+    response.setError("No type given in request.");
+    WriteResponse(response);
+    return;
     }
 
   cmServerResponse response(Protocol->process(request));
@@ -178,16 +178,36 @@ void cmMetadataServer::WriteJsonObject(const Json::Value& jsonValue)
   write_data((uv_stream_t *)&mStdout_pipe, result, on_stdout_write);
 }
 
-void cmMetadataServer::WriteParseError(const std::__cxx11::string &message)
+void cmMetadataServer::WriteProgress(const cmServerRequest &request,
+                                     int min, int current, int max, const std::string& message)
 {
+  assert(min <= current && current <= max);
+  assert(message.length() != 0);
+
   Json::Value obj = Json::objectValue;
-  obj["type"] = "parseError";
-  obj["errorMessage"] = message;
+  obj["type"] = "progress";
+  obj["inResponseTo"] = request.Type;
+  obj["cookie"] = request.Cookie;
+  obj["progressMessage"] = message;
+  obj["progressMinimum"] = min;
+  obj["progressMaximum"] = max;
+  obj["progressCurrent"] = current;
 
   WriteJsonObject(obj);
 }
 
-void cmMetadataServer::WriteProgress(const std::__cxx11::string &progress)
+void cmMetadataServer::WriteParseError(const std::string &message)
+{
+  Json::Value obj = Json::objectValue;
+  obj["type"] = "error";
+  obj["errorMessage"] = message;
+  obj["inResponseTo"] = "";
+  obj["cookie"] = "";
+
+  WriteJsonObject(obj);
+}
+
+void cmMetadataServer::WriteProgress(const std::string &progress)
 {
   Json::Value obj = Json::objectValue;
   obj["type"] = "progress";
@@ -201,8 +221,8 @@ void cmMetadataServer::WriteResponse(const cmServerResponse &response)
 
   Json::Value result = response.Data();
   result["cookie"] = response.Cookie;
-  result["type"] = response.Type;
-  result["isError"] = response.IsError() ? "1" : "0";
+  result["type"] = response.IsError() ? "error" : "reply";
+  result["inResponseTo"] = response.Type;
   if (response.IsError())
     {
     result["errorMessage"] = response.ErrorMessage();
