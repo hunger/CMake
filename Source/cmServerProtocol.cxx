@@ -147,8 +147,8 @@ Json::Value cmServerResponse::Data() const
 
 cmServerProtocol::~cmServerProtocol() { }
 
-cmServerProtocol0_1::cmServerProtocol0_1(cmMetadataServer* server, std::string buildDir)
-  : Server(server), CMakeInstance(0), m_buildDir(buildDir)
+cmServerProtocol0_1::cmServerProtocol0_1()
+  : CMakeInstance(0)
 {
 
 }
@@ -165,78 +165,71 @@ std::pair<int, int> cmServerProtocol0_1::protocolVersion() const
 
 const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &request)
 {
-  switch (Server->GetState())
-  {
-  case cmMetadataServer::Uninitialized:
-    break;
-  case cmMetadataServer::Started:
+  if (request.Type == "initialize")
     {
-    if (request.Type == "handshake")
-      {
-      return ProcessHandshake(request);
-      }
-    break;
+    return ProcessInitialize(request);
     }
-  case cmMetadataServer::Initializing:
-    break;
-  case cmMetadataServer::ProcessingRequests:
+  if (request.Type == "version")
     {
-    if (request.Type == "version")
-      {
-      return ProcessVersion(request);
-      }
-    if (request.Type == "buildsystem")
-      {
-      return ProcessBuildSystem(request);
-      }
-    if (request.Type == "target_info")
-      {
-      return ProcessTargetInfo(request);
-      }
-    if (request.Type == "file_info")
-      {
-      return ProcessFileInfo(request);
-      }
-    if (request.Type == "content")
-      {
-      return ProcessContent(request);
-      }
-    if (request.Type == "parse")
-      {
-      return ProcessParse(request);
-      }
-    if (request.Type == "contextual_help")
-      {
-      return ProcessContextualHelp(request);
-      }
-    if (request.Type == "content_diff")
-      {
-      return ProcessContentDiff(request);
-      }
-    if (request.Type == "code_complete")
-      {
-      return ProcessCodeComplete(request);
-      }
-    if (request.Type == "context_writers")
-      {
-      return ProcessContextWriters(request);
-      }
-    break;
+    return ProcessVersion(request);
     }
-  }
+  if (request.Type == "buildsystem")
+    {
+    return ProcessBuildSystem(request);
+    }
+  if (request.Type == "target_info")
+    {
+    return ProcessTargetInfo(request);
+    }
+  if (request.Type == "file_info")
+    {
+    return ProcessFileInfo(request);
+    }
+  if (request.Type == "content")
+    {
+    return ProcessContent(request);
+    }
+  if (request.Type == "parse")
+    {
+    return ProcessParse(request);
+    }
+  if (request.Type == "contextual_help")
+    {
+    return ProcessContextualHelp(request);
+    }
+  if (request.Type == "content_diff")
+    {
+    return ProcessContentDiff(request);
+    }
+  if (request.Type == "code_complete")
+    {
+    return ProcessCodeComplete(request);
+    }
+  if (request.Type == "context_writers")
+    {
+    return ProcessContextWriters(request);
+    }
 
   return cmServerResponse::errorResponse(request, "Unknown command!");
 }
 
-cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &request)
+cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &request)
 {
-  this->Server->SetState(cmMetadataServer::Initializing);
-  assert(!CMakeInstance);
+  if (CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Already initialized.");
+    }
+
+  std::string buildDir = request.Data["buildDirectory"].asString();
+  if (buildDir.empty())
+    {
+    return cmServerResponse::errorResponse(request, "\"buildDirectory\" is mandatory to initialize.");
+    }
 
   this->CMakeInstance = new cmake;
   this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
   std::set<std::string> emptySet;
-  if(!this->CMakeInstance->GetState()->LoadCache(m_buildDir.c_str(),
+  if(!this->CMakeInstance->GetState()->LoadCache(buildDir.c_str(),
                                                  true, emptySet, emptySet))
     {
     return cmServerResponse::errorResponse(request, "Failed to load cache in build directory.");
@@ -259,7 +252,7 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
     }
 
   this->CMakeInstance->SetHomeDirectory(sourceDir);
-  this->CMakeInstance->SetHomeOutputDirectory(m_buildDir);
+  this->CMakeInstance->SetHomeOutputDirectory(buildDir);
   this->CMakeInstance->SetGlobalGenerator(
     this->CMakeInstance->CreateGlobalGenerator(genName));
 
@@ -301,8 +294,6 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
   idleObj["project_name"] = this->CMakeInstance->GetGlobalGenerator()
       ->GetLocalGenerators()[0]->GetProjectName();
 
-  this->Server->SetState(cmMetadataServer::ProcessingRequests);
-
   request.ReportProgress(0, 3, 3, "done");
 
   return cmServerResponse::dataResponse(request, idleObj);
@@ -318,6 +309,11 @@ cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &requ
 
 cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   Json::Value root = Json::objectValue;
   Json::Value& obj = root["buildsystem"] = Json::objectValue;
 
@@ -393,6 +389,11 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
 
 cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   std::string tgtName = request.Data["target_name"].asString();
   std::string config = request.Data["config"].asString();
   const char* language = nullptr;
@@ -506,6 +507,11 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
 cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string tgtName = request.Data["target_name"].asString();
   const std::string config = request.Data["config"].asString();
   const std::string file_path = request.Data["file_path"].asString();
@@ -546,6 +552,11 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
 
 cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
@@ -586,6 +597,11 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 
 cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string file_path = request.Data["file_path"].asString();
   DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
@@ -607,6 +623,12 @@ cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &reques
 
 cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();
@@ -800,6 +822,11 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 
 cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string filePath1 = request.Data["file_path1"].asString();
   const long fileLine1 = request.Data["file_line1"].asInt();
   const std::string filePath2 = request.Data["file_path2"].asString();
@@ -901,6 +928,11 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
 
 cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();
@@ -955,6 +987,11 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
 
 cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return cmServerResponse::errorResponse(request, "Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();

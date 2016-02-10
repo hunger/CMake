@@ -89,14 +89,14 @@ struct OrderFileThenLine
 class cmServerProtocol0_1 : public cmServerProtocol
 {
 public:
-  cmServerProtocol0_1(cmMetadataServer* server, std::string buildDir);
+  cmServerProtocol0_1();
   ~cmServerProtocol0_1() override;
 
   std::pair<int, int> protocolVersion() const override;
   const cmServerResponse process(const cmServerRequest &request) override;
 
 private:
-  cmServerResponse ProcessHandshake(const cmServerRequest &request);
+  cmServerResponse ProcessInitialize(const cmServerRequest &request);
   cmServerResponse ProcessVersion(const cmServerRequest &request);
   cmServerResponse ProcessBuildSystem(const cmServerRequest &request);
   cmServerResponse ProcessTargetInfo(const cmServerRequest &request);
@@ -128,8 +128,6 @@ private:
   Json::Value GenerateContextualHelp(std::string const& context,
                       std::string const& help_key);
 
-  cmMetadataServer* Server;
   cmake *CMakeInstance;
-  std::string m_buildDir;
   std::map<cmListFileContext, std::vector<cmState::Snapshot>, OrderFileThenLine> Snapshots;
 };

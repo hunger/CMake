@@ -1015,17 +1015,12 @@ int cmcmd::ExecuteCMakeCommand(std::vector<std::string>& args)
 #if defined(HAVE_DAEMON_MODE) && HAVE_DAEMON_MODE
     else if (args[1] == "daemon")
       {
-      std::string buildDir;
-      if (args.size() > 3)
+      if (args.size() > 2)
         {
         return 1;
         }
-      if (args.size() == 3)
-        {
-        buildDir = args[2];
-        }
       cmMetadataServer server;
-      server.ServeMetadata(buildDir);
+      server.ServeMetadata();
       return 0;
 #else
       cmSystemTools::Error("CMake was not built with daemon mode enabled");

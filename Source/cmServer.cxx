@@ -76,7 +76,6 @@ cmMetadataServer::cmMetadataServer()
   uv_pipe_open(&mStdout_pipe, 1);
   mStdout_pipe.data = this;
 
-  this->State = Uninitialized;
   this->Writing = false;
 }
 
@@ -116,8 +115,7 @@ void cmMetadataServer::PopOne()
     return;
     }
 
-  cmServerResponse response(Protocol->process(request));
-  WriteResponse(response);
+  WriteResponse(Protocol ? Protocol->process(request) : SetProtocolVersion(request));
 }
 
 void cmMetadataServer::handleData(const std::string &data)
@@ -150,16 +148,63 @@ void cmMetadataServer::handleData(const std::string &data)
         this->PopOne();
         }
       }
-    }
+  }
 }
 
-void cmMetadataServer::ServeMetadata(const std::string& buildDir)
+cmServerResponse cmMetadataServer::SetProtocolVersion(const cmServerRequest& request)
 {
-  this->State = Started;
+  if (request.Type != "handshake")
+    return cmServerResponse::errorResponse(request, "Waiting for type \"handshake\".");
 
-  WriteProgress("process-started");
+  Json::Value requestedProtocolVersion = request.Data["protocolVersion"];
+  if (requestedProtocolVersion.isNull())
+    return cmServerResponse::errorResponse(request, "\"protocolVersion\" is required for \"handshake\".");
 
-  this->Protocol = new cmServerProtocol0_1(this, buildDir);
+  Json::Value majorValue = requestedProtocolVersion["major"];
+  if (!majorValue.isInt())
+    return cmServerResponse::errorResponse(request, "\"major\" must be an integer.");
+
+  Json::Value minorValue = requestedProtocolVersion["minor"];
+  if (!minorValue.isNull() && !minorValue.isInt())
+    return cmServerResponse::errorResponse(request, "\"minor\" must be unset or an integer.");
+
+  const int major = majorValue.asInt();
+  const int minor = minorValue.isNull() ? -1 : minorValue.asInt();
+  if (major < 0)
+    return cmServerResponse::errorResponse(request, "\"major\" must be >= 0.");
+  if (!minorValue.isNull() && minor < 0)
+    return cmServerResponse::errorResponse(request, "\"minor\" must be >= 0.");
+
+  Protocol = findMatchingProtocol(major, minor);
+  if (Protocol)
+    return cmServerResponse::dataResponse(request, Json::objectValue);
+  else
+    return cmServerResponse::errorResponse(request, "Protocol version not supported.");
+}
+
+void cmMetadataServer::ServeMetadata()
+{
+  // Register supported protocols:
+  SupportedProtocols.push_back(new cmServerProtocol0_1());
+
+  assert(!SupportedProtocols.empty());
+  assert(!Protocol);
+
+  Json::Value hello = Json::objectValue;
+  hello["type"] = "hello";
+
+  Json::Value& protocolVersions = hello["supportedProtocolVersions"] = Json::arrayValue;
+
+  for (auto const &proto : SupportedProtocols)
+    {
+    auto version = proto->protocolVersion();
+    Json::Value tmp = Json::objectValue;
+    tmp["major"] = version.first;
+    tmp["minor"] = version.second;
+    protocolVersions.append(tmp);
+    }
+
+  WriteJsonObject(hello);
 
   uv_read_start((uv_stream_t*)&mStdin_pipe, alloc_buffer, read_stdin);
 
@@ -176,6 +221,17 @@ void cmMetadataServer::WriteJsonObject(const Json::Value& jsonValue)
 
   this->Writing = true;
   write_data((uv_stream_t *)&mStdout_pipe, result, on_stdout_write);
+}
+
+cmServerProtocol* cmMetadataServer::findMatchingProtocol(int major, int minor) const
+{
+  for (auto protocol : SupportedProtocols)
+    {
+    auto version = protocol->protocolVersion();
+    if (major == version.first && (minor < 0 || minor == version.second))
+      return protocol;
+    }
+  return 0;
 }
 
 void cmMetadataServer::WriteProgress(const cmServerRequest &request,
