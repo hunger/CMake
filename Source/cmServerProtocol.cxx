@@ -78,24 +78,24 @@ void cmServerRequest::ReportProgress(int min, int current, int max, const std::s
   Server->WriteProgress(*this, min, current, max, message);
 }
 
-cmServerResponse::cmServerResponse(const cmServerRequest &request)
-  : Type(request.Type), Cookie(request.Cookie)
+cmServerResponse cmServerRequest::Reply(const Json::Value& data) const
 {
-
+  cmServerResponse response(*this);
+  response.setData(data);
+  return response;
 }
 
-cmServerResponse cmServerResponse::errorResponse(const cmServerRequest &request, const std::__cxx11::string &message)
+cmServerResponse cmServerRequest::ReportError(const std::string& message) const
 {
-  cmServerResponse response(request);
+  cmServerResponse response(*this);
   response.setError(message);
   return response;
 }
 
-cmServerResponse cmServerResponse::dataResponse(const cmServerRequest &request, const Json::Value &data)
+cmServerResponse::cmServerResponse(const cmServerRequest &request)
+  : Type(request.Type), Cookie(request.Cookie)
 {
-  cmServerResponse response(request);
-  response.setData(data);
-  return response;
+
 }
 
 void cmServerResponse::setData(const Json::Value &data)
@@ -147,8 +147,8 @@ Json::Value cmServerResponse::Data() const
 
 cmServerProtocol::~cmServerProtocol() { }
 
-cmServerProtocol0_1::cmServerProtocol0_1(cmMetadataServer* server, std::string buildDir)
-  : Server(server), CMakeInstance(0), m_buildDir(buildDir)
+cmServerProtocol0_1::cmServerProtocol0_1()
+  : CMakeInstance(0)
 {
 
 }
@@ -165,81 +165,74 @@ std::pair<int, int> cmServerProtocol0_1::protocolVersion() const
 
 const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &request)
 {
-  switch (Server->GetState())
-  {
-  case cmMetadataServer::Uninitialized:
-    break;
-  case cmMetadataServer::Started:
+  if (request.Type == "initialize")
     {
-    if (request.Type == "handshake")
-      {
-      return ProcessHandshake(request);
-      }
-    break;
+    return ProcessInitialize(request);
     }
-  case cmMetadataServer::Initializing:
-    break;
-  case cmMetadataServer::ProcessingRequests:
+  if (request.Type == "version")
     {
-    if (request.Type == "version")
-      {
-      return ProcessVersion(request);
-      }
-    if (request.Type == "buildsystem")
-      {
-      return ProcessBuildSystem(request);
-      }
-    if (request.Type == "target_info")
-      {
-      return ProcessTargetInfo(request);
-      }
-    if (request.Type == "file_info")
-      {
-      return ProcessFileInfo(request);
-      }
-    if (request.Type == "content")
-      {
-      return ProcessContent(request);
-      }
-    if (request.Type == "parse")
-      {
-      return ProcessParse(request);
-      }
-    if (request.Type == "contextual_help")
-      {
-      return ProcessContextualHelp(request);
-      }
-    if (request.Type == "content_diff")
-      {
-      return ProcessContentDiff(request);
-      }
-    if (request.Type == "code_complete")
-      {
-      return ProcessCodeComplete(request);
-      }
-    if (request.Type == "context_writers")
-      {
-      return ProcessContextWriters(request);
-      }
-    break;
+    return ProcessVersion(request);
     }
-  }
+  if (request.Type == "buildsystem")
+    {
+    return ProcessBuildSystem(request);
+    }
+  if (request.Type == "target_info")
+    {
+    return ProcessTargetInfo(request);
+    }
+  if (request.Type == "file_info")
+    {
+    return ProcessFileInfo(request);
+    }
+  if (request.Type == "content")
+    {
+    return ProcessContent(request);
+    }
+  if (request.Type == "parse")
+    {
+    return ProcessParse(request);
+    }
+  if (request.Type == "contextual_help")
+    {
+    return ProcessContextualHelp(request);
+    }
+  if (request.Type == "content_diff")
+    {
+    return ProcessContentDiff(request);
+    }
+  if (request.Type == "code_complete")
+    {
+    return ProcessCodeComplete(request);
+    }
+  if (request.Type == "context_writers")
+    {
+    return ProcessContextWriters(request);
+    }
 
-  return cmServerResponse::errorResponse(request, "Unknown command!");
+  return request.ReportError("Unknown command!");
 }
 
-cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &request)
+cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &request)
 {
-  this->Server->SetState(cmMetadataServer::Initializing);
-  assert(!CMakeInstance);
+  if (CMakeInstance)
+    {
+    return request.ReportError("Already initialized.");
+    }
+
+  std::string buildDir = request.Data["buildDirectory"].asString();
+  if (buildDir.empty())
+    {
+    return request.ReportError("\"buildDirectory\" is mandatory to initialize.");
+    }
 
   this->CMakeInstance = new cmake;
   this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
   std::set<std::string> emptySet;
-  if(!this->CMakeInstance->GetState()->LoadCache(m_buildDir.c_str(),
+  if(!this->CMakeInstance->GetState()->LoadCache(buildDir.c_str(),
                                                  true, emptySet, emptySet))
     {
-    return cmServerResponse::errorResponse(request, "Failed to load cache in build directory.");
+    return request.ReportError("Failed to load cache in build directory.");
     }
 
   const char* genName =
@@ -247,7 +240,7 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
           ->GetInitializedCacheValue("CMAKE_GENERATOR");
   if (!genName)
     {
-    return cmServerResponse::errorResponse(request, "No CMAKE_GENERATOR value found in cache.");
+    return request.ReportError("No CMAKE_GENERATOR value found in cache.");
     }
 
   const char* sourceDir =
@@ -255,11 +248,11 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
           ->GetInitializedCacheValue("CMAKE_HOME_DIRECTORY");
   if (!sourceDir)
     {
-    return cmServerResponse::errorResponse(request, "No CMAKE_HOME_DIRECTORY value found in cache.");
+    return request.ReportError("No CMAKE_HOME_DIRECTORY value found in cache.");
     }
 
   this->CMakeInstance->SetHomeDirectory(sourceDir);
-  this->CMakeInstance->SetHomeOutputDirectory(m_buildDir);
+  this->CMakeInstance->SetHomeOutputDirectory(buildDir);
   this->CMakeInstance->SetGlobalGenerator(
     this->CMakeInstance->CreateGlobalGenerator(genName));
 
@@ -279,7 +272,7 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
 
   if (!this->CMakeInstance->GetGlobalGenerator()->Compute())
     {
-    return cmServerResponse::errorResponse(request, "Failed to run generator.");
+    return request.ReportError("Failed to run generator.");
     }
 
   request.ReportProgress(0, 2, 3, "computed");
@@ -301,11 +294,9 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
   idleObj["project_name"] = this->CMakeInstance->GetGlobalGenerator()
       ->GetLocalGenerators()[0]->GetProjectName();
 
-  this->Server->SetState(cmMetadataServer::ProcessingRequests);
-
   request.ReportProgress(0, 3, 3, "done");
 
-  return cmServerResponse::dataResponse(request, idleObj);
+  return request.Reply(idleObj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
@@ -313,11 +304,16 @@ cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &requ
     Json::Value obj = Json::objectValue;
     obj["version"] = CMake_VERSION;
 
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   Json::Value root = Json::objectValue;
   Json::Value& obj = root["buildsystem"] = Json::objectValue;
 
@@ -388,11 +384,16 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
       }
     }
 
-  return cmServerResponse::dataResponse(request, root);
+  return request.Reply(root);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   std::string tgtName = request.Data["target_name"].asString();
   std::string config = request.Data["config"].asString();
   const char* language = nullptr;
@@ -409,7 +410,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
   if (!tgt)
     {
-    return cmServerResponse::errorResponse(request, "Failed to find target.");
+    return request.ReportError("Failed to find target.");
     }
 
   root["target_name"] = tgt->GetName();
@@ -501,11 +502,16 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_includes.append(dir);
     }
 
-  return cmServerResponse::dataResponse(request, obj);
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string tgtName = request.Data["target_name"].asString();
   const std::string config = request.Data["config"].asString();
   const std::string file_path = request.Data["file_path"].asString();
@@ -515,7 +521,7 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
 
   if (!tgt)
     {
-    return cmServerResponse::errorResponse(request, "Target not found.");
+    return request.ReportError("Target not found.");
     }
 
   Json::Value obj = Json::objectValue;
@@ -535,17 +541,22 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
 
   if (!file)
     {
-    return cmServerResponse::errorResponse(request, "File not found.");
+    return request.ReportError("File not found.");
     }
 
   // TODO: Get the includes/defines/flags for the file for this target.
   // There does not seem to be suitable API for that yet.
 
-  return cmServerResponse::dataResponse(request, obj);
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
@@ -553,14 +564,14 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 
   if (fileLine < 0)
     {
-    return cmServerResponse::errorResponse(request, "file_line is a negative integer.");
+    return request.ReportError("file_line is a negative integer.");
     }
 
   if (this->IsNotExecuted(filePath, fileLine))
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto res = this->GetSnapshotAndStartLine(filePath, fileLine, diff);
@@ -568,7 +579,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto desired =
@@ -578,14 +589,19 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
-  return cmServerResponse::dataResponse(request, GenerateContent(contentSnp, matcher));
+  return request.Reply(GenerateContent(contentSnp, matcher));
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string file_path = request.Data["file_path"].asString();
   DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
@@ -602,11 +618,17 @@ cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &reques
 
   getUnreachable(unreachable, diff, nx);
 
-  return cmServerResponse::dataResponse(request, obj);
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();
@@ -614,7 +636,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 
   if (fileLine <= 0)
     {
-    return cmServerResponse::errorResponse(request, "file_line is <= 0.");
+    return request.ReportError("file_line is <= 0.");
     }
 
   std::string content;
@@ -637,7 +659,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
         filePath.c_str(),
         this->CMakeInstance->GetGlobalGenerator()->GetMakefiles()[0]))
     {
-    return cmServerResponse::errorResponse(request, "Failed to parse.");
+    return request.ReportError("Failed to parse.");
     }
 
   const size_t numberFunctions = listFile.Functions.size();
@@ -652,7 +674,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 
       contextual_help["nocontext"] = true;
 
-      return cmServerResponse::dataResponse(request, obj);
+      return request.Reply(obj);
       }
 
     const long closeParenLine = listFile.Functions[funcIndex].CloseParenLine;
@@ -681,7 +703,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
           if (args[argIndex].Line > fileLine ||
               args[argIndex].Column > fileColumn)
             {
-            return cmServerResponse::dataResponse(request, GenerateContextualHelp("command",
+            return request.Reply(GenerateContextualHelp("command",
                                                                                   listFile.Functions[funcIndex].Name));
             }
           if (args[argIndex].Delim == cmListFileArgument::Unquoted)
@@ -705,7 +727,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
                   Json::Value help = GenerateContextualHelp("variable", relevant);
                   if (!help.isNull())
                     {
-                    return cmServerResponse::dataResponse(request, help);
+                    return request.Reply(help);
                     }
                   }
                 }
@@ -713,7 +735,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
                                                            args, argIndex);
               if (!help.isNull())
                 {
-                return cmServerResponse::dataResponse(request, help);
+                return request.Reply(help);
                 }
               }
             break;
@@ -757,7 +779,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
                                        args, argIndex);
             if (!help.isNull())
               {
-              return cmServerResponse::dataResponse(request, help);
+              return request.Reply(help);
               }
             }
 
@@ -783,7 +805,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
               relevant = relevant.substr(openPos + 1, endRel);
               Json::Value help = GenerateContextualHelp("variable", relevant);
               if (!help.isNull())
-                return cmServerResponse::dataResponse(request, help);
+                return request.Reply(help);
               else
                 break;
               }
@@ -792,14 +814,19 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
           }
         }
 
-      return cmServerResponse::dataResponse(request, GenerateContextualHelp("command", listFile.Functions[funcIndex].Name));
+      return request.Reply(GenerateContextualHelp("command", listFile.Functions[funcIndex].Name));
       }
     }
-  return cmServerResponse::dataResponse(request, Json::objectValue);
+  return request.Reply(Json::objectValue);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string filePath1 = request.Data["file_path1"].asString();
   const long fileLine1 = request.Data["file_line1"].asInt();
   const std::string filePath2 = request.Data["file_path2"].asString();
@@ -809,7 +836,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
 
   if (fileLine1 <= 0 || fileLine2 <= 0)
     {
-    return cmServerResponse::errorResponse(request, "File line is negative or 0.");
+    return request.ReportError("File line is negative or 0.");
     }
 
   if (this->IsNotExecuted(filePath1, fileLine1)
@@ -818,7 +845,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     Json::Value obj = Json::objectValue;
 
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto res1 = GetSnapshotAndStartLine(filePath1, fileLine1, diffs.first);
@@ -826,7 +853,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto res2 = GetSnapshotAndStartLine(filePath2, fileLine2, diffs.second);
@@ -834,7 +861,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto desired1 =
@@ -844,7 +871,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto desired2 =
@@ -854,7 +881,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     {
     Json::Value obj = Json::objectValue;
     obj["content_result"] = "unexecuted";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   Json::Value obj = Json::objectValue;
@@ -896,11 +923,16 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     removedDefs.append(def);
     }
 
-  return cmServerResponse::dataResponse(request, obj);
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();
@@ -908,7 +940,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
 
   if (fileLine <= 0)
     {
-    return cmServerResponse::errorResponse(request, "File line is negative or 0.");
+    return request.ReportError("File line is negative or 0.");
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
@@ -916,7 +948,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_completions";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto desired =
@@ -926,7 +958,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_completions";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto prParseStart = diff.EditorLines.begin() + res.second - 1;
@@ -950,11 +982,16 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
                        desired.second, completionPrefix,
                        newToParse, fileColumn);
 
-  return cmServerResponse::dataResponse(request, result);
+  return request.Reply(result);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerRequest &request)
 {
+  if (!CMakeInstance)
+    {
+    return request.ReportError("Not initialized yet.");
+    }
+
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
   const long fileColumn = request.Data["file_column"].asInt();
@@ -962,7 +999,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 
   if (fileLine <= 0)
     {
-    return cmServerResponse::errorResponse(request, "file_line is negative or 0.");
+    return request.ReportError("file_line is negative or 0.");
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
@@ -970,7 +1007,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto desired =
@@ -980,7 +1017,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto prParseStart = diff.EditorLines.begin() + res.second - 1;
@@ -1009,14 +1046,14 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   if (!result["context_origin"].isMember("matcher"))
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   auto varName = result["context_origin"]["matcher"].asString();
@@ -1027,7 +1064,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   cmState::Snapshot snp = snps.front();
@@ -1041,14 +1078,14 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   if (it->second.empty())
     {
     Json::Value obj = Json::objectValue;
     obj["result"] = "no_context";
-    return cmServerResponse::dataResponse(request, obj);
+    return request.Reply(obj);
     }
 
   ++it;
@@ -1056,7 +1093,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
   Json::Value obj = Json::objectValue;
   obj["def_match"] = varName;
   obj["def_origin"] = (int)it->first.Line - 1;
-  return cmServerResponse::dataResponse(request, obj);
+  return request.Reply(obj);
 }
 
 std::pair<cmState::Snapshot, long>

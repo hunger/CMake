@@ -37,23 +37,15 @@ public:
   cmMetadataServer();
   ~cmMetadataServer();
 
-  void ServeMetadata(const std::string& buildDir);
-
-  void SetState(ServerState state)
-  {
-    this->State = state;
-  }
-
-  ServerState GetState() const
-  {
-    return this->State;
-  }
+  void ServeMetadata();
 
   // for callbacks:
   void PopOne();
   void handleData(std::string const& data);
 
 private:
+  void RegisterProtocol(cmServerProtocol *protocol);
+  cmServerResponse SetProtocolVersion(const cmServerRequest& request);
   void WriteProgress(const std::string& progress); // TODO: Remove
   void WriteProgress(const cmServerRequest& request,
                      int min, int current, int max, const std::string &message);
@@ -62,7 +54,11 @@ private:
 
   void WriteJsonObject(Json::Value const& jsonValue);
 
+  static cmServerProtocol* FindMatchingProtocol(const std::vector<cmServerProtocol*>& protocols,
+                                                int major, int minor);
+
   cmServerProtocol* Protocol;
+  std::vector<cmServerProtocol*> SupportedProtocols;
   std::vector<std::string> mQueue;
   
   std::string mDataBuffer;
@@ -72,7 +68,6 @@ private:
   uv_pipe_t mStdin_pipe;
   uv_pipe_t mStdout_pipe;
 
-  ServerState State;
   bool Writing;
 
   friend class cmServerRequest;
