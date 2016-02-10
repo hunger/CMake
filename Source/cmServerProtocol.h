@@ -26,11 +26,19 @@ struct DifferentialFileContent;
 
 class cmServerRequest {
 public:
-  cmServerRequest(const std::string &t, const std::string &c, const Json::Value &d);
+  void ReportProgress(int min, int current, int max, const std::string &message) const;
 
   const std::string Type;
   const std::string Cookie;
   const Json::Value Data;
+
+private:
+  cmServerRequest(cmMetadataServer* server, const std::string &t,
+                  const std::string &c, const Json::Value &d);
+
+  cmMetadataServer* Server;
+
+  friend class cmMetadataServer;
 };
 
 class cmServerResponse {

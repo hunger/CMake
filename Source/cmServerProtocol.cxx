@@ -67,10 +67,15 @@ void getUnreachable(Json::Value& unreachable,
     }
 }
 
-cmServerRequest::cmServerRequest(const std::string &t, const std::string &c, const Json::Value &d)
-  : Type(t), Cookie(c), Data(d)
+cmServerRequest::cmServerRequest(cmMetadataServer* server, const std::string &t, const std::string &c, const Json::Value &d)
+  : Type(t), Cookie(c), Data(d), Server(server)
 {
 
+}
+
+void cmServerRequest::ReportProgress(int min, int current, int max, const std::string& message) const
+{
+  Server->WriteProgress(*this, min, current, max, message);
 }
 
 cmServerResponse::cmServerResponse(const cmServerRequest &request)
@@ -264,27 +269,20 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
   this->CMakeInstance->SetWarnUnused(false);
   this->CMakeInstance->PreLoadCMakeFiles();
 
-  Json::Value obj = Json::objectValue;
-  obj["progress"] = "initialized";
-
-  this->Server->WriteJsonObject(obj);
+  request.ReportProgress(0, 0, 3, "initialized");
 
   // First not? But some other mode that aborts after ActualConfigure
   // and creates snapshots?
   this->CMakeInstance->Configure();
 
-  obj["progress"] = "configured";
-
-  this->Server->WriteJsonObject(obj);
+  request.ReportProgress(0, 1, 3, "configured");
 
   if (!this->CMakeInstance->GetGlobalGenerator()->Compute())
     {
     return cmServerResponse::errorResponse(request, "Failed to run generator.");
     }
 
-  obj["progress"] = "computed";
-
-  this->Server->WriteJsonObject(obj);
+  request.ReportProgress(0, 2, 3, "computed");
 
   cmState* state = this->CMakeInstance->GetState();
 
@@ -304,6 +302,8 @@ cmServerResponse cmServerProtocol0_1::ProcessHandshake(const cmServerRequest &re
       ->GetLocalGenerators()[0]->GetProjectName();
 
   this->Server->SetState(cmMetadataServer::ProcessingRequests);
+
+  request.ReportProgress(0, 3, 3, "done");
 
   return cmServerResponse::dataResponse(request, idleObj);
 }

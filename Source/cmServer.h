@@ -21,12 +21,12 @@
 #endif
 
 class cmServerProtocol;
+class cmServerRequest;
 class cmServerResponse;
 
 class cmMetadataServer
 {
 public:
-
   enum ServerState {
     Uninitialized,
     Started,
@@ -35,16 +35,9 @@ public:
   };
 
   cmMetadataServer();
-
   ~cmMetadataServer();
 
   void ServeMetadata(const std::string& buildDir);
-
-  void PopOne();
-
-  void handleData(std::string const& data);
-
-  void WriteProgress(const std::string& progress);
 
   void SetState(ServerState state)
   {
@@ -56,12 +49,18 @@ public:
     return this->State;
   }
 
-  // Todo: Make private!
-  void WriteJsonObject(Json::Value const& jsonValue);
+  // for callbacks:
+  void PopOne();
+  void handleData(std::string const& data);
 
 private:
+  void WriteProgress(const std::string& progress); // TODO: Remove
+  void WriteProgress(const cmServerRequest& request,
+                     int min, int current, int max, const std::string &message);
   void WriteResponse(const cmServerResponse &response);
   void WriteParseError(const std::string &message);
+
+  void WriteJsonObject(Json::Value const& jsonValue);
 
   cmServerProtocol* Protocol;
   std::vector<std::string> mQueue;
@@ -75,4 +74,6 @@ private:
 
   ServerState State;
   bool Writing;
+
+  friend class cmServerRequest;
 };
