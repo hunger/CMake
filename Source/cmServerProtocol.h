@@ -22,7 +22,7 @@
 class cmake;
 class cmMetadataServer;
 
-struct DifferentialFileContent;
+class DifferentialFileContent;
 
 class cmServerRequest {
 public:

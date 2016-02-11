@@ -18,8 +18,9 @@
 # include "cm_jsoncpp_value.h"
 #endif
 
-struct Chunk
+class Chunk
 {
+public:
   long OrigStart = 1;
   long NewStart = 1;
   long NumCommon = 0;
@@ -27,8 +28,9 @@ struct Chunk
   long NumAdded = 0;
 };
 
-struct DifferentialFileContent
+class DifferentialFileContent
 {
+public:
   std::vector<std::string> OrigLines;
   std::vector<std::string> EditorLines;
   std::vector<Chunk> Chunks;
