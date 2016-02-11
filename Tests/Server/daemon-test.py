@@ -22,7 +22,7 @@ cmakelib.writePayload(proc, req)
 packet = ordered(cmakelib.waitForMessage(proc))
 
 if packet != res:
-  print "NOT EQUAL\n", packet, "\n\n", res
+  print ("NOT EQUAL\n", packet, "\n\n", res)
   sys.exit(-1)
 
 sys.exit(0)

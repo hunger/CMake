@@ -9,13 +9,13 @@ print_communication = False
 def col_print(title, array):
   print
   print
-  print title
+  print (title)
 
   indentwidth = 4
   indent = " " * indentwidth
 
   if not array:
-    print indent + "<None>"
+    print (indent + "<None>")
     return
 
   padwidth = 2
@@ -29,7 +29,7 @@ def col_print(title, array):
   pad = " " * padwidth
 
   for index in range(numRows):
-    print indent + pad.join(item.ljust(maxitemwidth) for item in array[index::numRows])
+    print (indent + pad.join(item.ljust(maxitemwidth) for item in array[index::numRows]))
 
 def waitForMessage(process):
   stdoutdata = ""
@@ -47,7 +47,7 @@ def waitForMessage(process):
       begin += len("[== CMake MetaMagic ==[\n")
       payload = stdoutdata[begin:end]
       if print_communication:
-        print "\nDAEMON>", json.loads(payload), "\n"
+        print ("\nDAEMON>", json.loads(payload), "\n")
       return json.loads(payload)
 
 def writePayload(process, content):
@@ -57,7 +57,7 @@ def writePayload(process, content):
 ]== CMake MetaMagic ==]
 """ % json.dumps(content)
   if print_communication:
-    print "\nCLIENT>", content, "\n"
+    print ("\nCLIENT>", content, "\n")
   process.stdin.write(payload)
 
 def initProc(cmakeCommand, build_dir):
@@ -69,7 +69,7 @@ def initProc(cmakeCommand, build_dir):
   packet = waitForMessage(cmakeProcess)
 
   if packet["progress"] != "process-started":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   writePayload(cmakeProcess, {"type": "handshake"})
@@ -77,31 +77,31 @@ def initProc(cmakeCommand, build_dir):
   packet = waitForMessage(cmakeProcess)
 
   if packet["progressMessage"] != "initialized":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
   if packet["progressMessage"] != "configured":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
   if packet["progressMessage"] != "computed":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
   if packet["progressMessage"] != "done":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   packet = waitForMessage(cmakeProcess)
 
   if packet["progress"] != "idle":
-    print "Process error"
+    print ("Process error")
     sys.exit(1)
 
   return cmakeProcess
