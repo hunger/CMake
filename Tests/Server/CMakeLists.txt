@@ -10,14 +10,11 @@ macro(do_build name)
   )
 endmacro()
 
-macro(do_test bsname req_ res)
-  string(REPLACE "\n" "\\n" req ${req_})
+macro(do_test bsname file)
   execute_process(COMMAND python
       "${CMAKE_SOURCE_DIR}/daemon-test.py"
       "${CMAKE_COMMAND}"
-      "${CMAKE_BINARY_DIR}/${bsname}"
-      "${req}"
-      "${res}"
+      "${CMAKE_SOURCE_DIR}/${file}"
     RESULT_VARIABLE test_result)
 
   if (NOT test_result EQUAL 0)
@@ -25,7 +22,9 @@ macro(do_test bsname req_ res)
   endif()
 endmacro()
 
-add_subdirectory(bs1tests)
-add_subdirectory(bs2tests)
+do_test("test_handshake" "tc_handshake.json")
+
+# add_subdirectory(bs1tests)
+# add_subdirectory(bs2tests)
 
 add_executable(Server empty.cpp)

@@ -15,7 +15,7 @@ def col_print(title, array):
   indent = " " * indentwidth
 
   if not array:
-    print indent + "<None>"
+    print(indent + "<None>")
     return
 
   padwidth = 2
@@ -29,7 +29,7 @@ def col_print(title, array):
   pad = " " * padwidth
 
   for index in range(numRows):
-    print indent + pad.join(item.ljust(maxitemwidth) for item in array[index::numRows])
+    print(indent + pad.join(item.ljust(maxitemwidth) for item in array[index::numRows]))
 
 def waitForMessage(process):
   stdoutdata = ""
@@ -50,58 +50,32 @@ def waitForMessage(process):
         print "\nDAEMON>", json.loads(payload), "\n"
       return json.loads(payload)
 
-def writePayload(process, content):
+def writeRawData(process, content):
   payload = """
 [== CMake MetaMagic ==[
 %s
 ]== CMake MetaMagic ==]
-""" % json.dumps(content)
+""" % content
   if print_communication:
-    print "\nCLIENT>", content, "\n"
+    print "\nCLIENT>", payload, "\n"
   process.stdin.write(payload)
 
-def initProc(cmakeCommand, build_dir):
+def writePayload(process, obj):
+  writeRawData(process, json.dumps(obj))
 
-  cmakeProcess = subprocess.Popen([cmakeCommand, "-E", "daemon", build_dir],
+def initProc(cmakeCommand):
+
+  cmakeProcess = subprocess.Popen([cmakeCommand, "-E", "daemon"],
                                   stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
 
   packet = waitForMessage(cmakeProcess)
-
-  if packet["progress"] != "process-started":
-    print "Process error"
+  if packet == None:
+    print "FAIL: Not in daemon mode"
     sys.exit(1)
 
-  writePayload(cmakeProcess, {"type": "handshake"})
-
-  packet = waitForMessage(cmakeProcess)
-
-  if packet["progressMessage"] != "initialized":
-    print "Process error"
-    sys.exit(1)
-
-  packet = waitForMessage(cmakeProcess)
-
-  if packet["progressMessage"] != "configured":
-    print "Process error"
-    sys.exit(1)
-
-  packet = waitForMessage(cmakeProcess)
-
-  if packet["progressMessage"] != "computed":
-    print "Process error"
-    sys.exit(1)
-
-  packet = waitForMessage(cmakeProcess)
-
-  if packet["progressMessage"] != "done":
-    print "Process error"
-    sys.exit(1)
-
-  packet = waitForMessage(cmakeProcess)
-
-  if packet["progress"] != "idle":
-    print "Process error"
+  if packet["type"] != "hello":
+    print "FAIL: No hello message"
     sys.exit(1)
 
   return cmakeProcess
