@@ -4,7 +4,15 @@ import sys, subprocess, json
 
 termwidth = 150
 
-print_communication = False
+print_communication = True
+
+def ordered(obj):
+  if isinstance(obj, dict):
+    return sorted((k, ordered(v)) for k, v in obj.items())
+  if isinstance(obj, list):
+    return sorted(ordered(x) for x in obj)
+  else:
+    return obj
 
 def col_print(title, array):
   print
@@ -31,11 +39,11 @@ def col_print(title, array):
   for index in range(numRows):
     print(indent + pad.join(item.ljust(maxitemwidth) for item in array[index::numRows]))
 
-def waitForMessage(process):
+def waitForRawMessage(cmakeCommand):
   stdoutdata = ""
   payload = ""
-  while not process.poll():
-    stdoutdataLine = process.stdout.readline()
+  while not cmakeCommand.poll():
+    stdoutdataLine = cmakeCommand.stdout.readline()
     if stdoutdataLine:
       stdoutdata += stdoutdataLine
     else:
@@ -50,46 +58,55 @@ def waitForMessage(process):
         print "\nDAEMON>", json.loads(payload), "\n"
       return json.loads(payload)
 
-def writeRawData(process, content):
+def writeRawData(cmakeCommand, content):
   payload = """
 [== CMake MetaMagic ==[
 %s
 ]== CMake MetaMagic ==]
 """ % content
   if print_communication:
-    print "\nCLIENT>", payload, "\n"
-  process.stdin.write(payload)
+    print "\nCLIENT>", content, "\n"
+  cmakeCommand.stdin.write(payload)
 
-def writePayload(process, obj):
-  writeRawData(process, json.dumps(obj))
+def writePayload(cmakeCommand, obj):
+  writeRawData(cmakeCommand, json.dumps(obj))
 
 def initProc(cmakeCommand):
-
-  cmakeProcess = subprocess.Popen([cmakeCommand, "-E", "daemon"],
+  cmakeCommand = subprocess.Popen([cmakeCommand, "-E", "daemon"],
                                   stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
 
-  packet = waitForMessage(cmakeProcess)
+  packet = waitForRawMessage(cmakeCommand)
   if packet == None:
-    print "FAIL: Not in daemon mode"
+    print "Not in daemon mode"
     sys.exit(1)
 
   if packet['type'] != 'hello':
-    print "FAIL: No hello message"
+    print "No hello message"
     sys.exit(1)
 
-  return cmakeProcess
+  return cmakeCommand
+
+def waitForMessage(cmakeCommand, expected):
+  data = ordered(expected)
+  packet = ordered(waitForRawMessage(cmakeCommand))
+
+  if packet != data:
+    sys.exit(-1)
 
 def waitForReply(cmakeCommand, originalType, cookie):
-  packet = waitForMessage(cmakeCommand)
-  print "Reply:", json.dumps(packet)
+  packet = waitForRawMessage(cmakeCommand)
   if packet['cookie'] != cookie or packet['type'] != 'reply' or packet['inReplyTo'] != originalType:
     sys.exit(1)
 
 def waitForError(cmakeCommand, originalType, cookie, message):
-  packet = waitForMessage(cmakeCommand)
-  print "Error:", json.dumps(packet)
+  packet = waitForRawMessage(cmakeCommand)
   if packet['cookie'] != cookie or packet['type'] != 'error' or packet['inReplyTo'] != originalType or packet['errorMessage'] != message:
+    sys.exit(1)
+
+def waitForProgress(cmakeCommand, originalType, cookie, current, message):
+  packet = waitForRawMessage(cmakeCommand)
+  if packet['cookie'] != cookie or packet['type'] != 'progress' or packet['inReplyTo'] != originalType or packet['progressCurrent'] != current or packet['progressMessage'] != message:
     sys.exit(1)
 
 def handshake(cmakeCommand, major, minor):
@@ -99,3 +116,12 @@ def handshake(cmakeCommand, major, minor):
 
   writePayload(cmakeCommand, { 'type': 'handshake', 'protocolVersion': version, 'cookie': 'TEST_HANDSHAKE' })
   waitForReply(cmakeCommand, 'handshake', 'TEST_HANDSHAKE')
+
+def initialize(cmakeCommand, sourceDir, buildDir):
+  writePayload(cmakeCommand, { 'type': 'initialize', 'buildDirectory': buildDir, 'cookie': 'TEST_INIT' })
+  waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 0, 'initialized')
+  waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 1, 'configured')
+  waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 2, 'computed')
+  waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 3, 'done')
+  waitForMessage(cmakeCommand, {"binary_dir":buildDir,"cookie":"TEST_INIT","inReplyTo":"initialize","project_name":"CMake","source_dir":sourceDir,"type":"reply"})
+

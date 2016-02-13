@@ -15,6 +15,8 @@ macro(do_test bsname file)
       "${CMAKE_SOURCE_DIR}/daemon-test.py"
       "${CMAKE_COMMAND}"
       "${CMAKE_SOURCE_DIR}/${file}"
+      "${CMAKE_SOURCE_DIR}"
+      "${CMAKE_BINARY_DIR}"
     RESULT_VARIABLE test_result)
 
   if (NOT test_result EQUAL 0)

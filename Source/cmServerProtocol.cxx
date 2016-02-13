@@ -168,10 +168,12 @@ void cmServerProtocol0_1::activate()
   assert(!CMakeInstance);
   this->CMakeInstance = new cmake;
   this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
+  mState = ACTIVE;
 }
 
 const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &request)
 {
+  assert(mState >= ACTIVE);
   if (request.Type == "initialize")
     {
     return ProcessInitialize(request);
@@ -222,7 +224,7 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
 
 cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &request)
 {
-  if (CMakeInstance)
+  if (mState == INITIALIZED)
     {
     return request.ReportError("Already initialized.");
     }
@@ -272,6 +274,7 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
   // First not? But some other mode that aborts after ActualConfigure
   // and creates snapshots?
   this->CMakeInstance->Configure();
+  mState = CONFIGURED;
 
   request.ReportProgress(0, 1, 3, "configured");
 
@@ -279,7 +282,7 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
     {
     return request.ReportError("Failed to run generator.");
     }
-
+  mState = COMPUTED;
   request.ReportProgress(0, 2, 3, "computed");
 
   cmState* state = this->CMakeInstance->GetState();
@@ -292,16 +295,16 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
 
   auto srcDir = this->CMakeInstance->GetState()->GetSourceDirectory();
 
-  Json::Value idleObj = Json::objectValue;
-  idleObj["progress"] = "idle";
-  idleObj["source_dir"] = srcDir;
-  idleObj["binary_dir"] = this->CMakeInstance->GetState()->GetBinaryDirectory();
-  idleObj["project_name"] = this->CMakeInstance->GetGlobalGenerator()
-      ->GetLocalGenerators()[0]->GetProjectName();
-
+  mState = INITIALIZED;
   request.ReportProgress(0, 3, 3, "done");
 
-  return request.Reply(idleObj);
+  Json::Value obj = Json::objectValue;
+  obj["source_dir"] = srcDir;
+  obj["binary_dir"] = this->CMakeInstance->GetState()->GetBinaryDirectory();
+  obj["project_name"] = this->CMakeInstance->GetGlobalGenerator()
+      ->GetLocalGenerators()[0]->GetProjectName();
+
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
@@ -314,7 +317,7 @@ cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &requ
 
 cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -394,7 +397,7 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
 
 cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+    if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -512,7 +515,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
 cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -557,7 +560,7 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
 
 cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -567,9 +570,9 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
   const std::string matcher = request.Data["matcher"].asString();
 
-  if (fileLine < 0)
+  if (fileLine <= 0)
     {
-    return request.ReportError("file_line is a negative integer.");
+    return request.ReportError("\"file_line\" must be a positive integer.");
     }
 
   if (this->IsNotExecuted(filePath, fileLine))
@@ -605,12 +608,22 @@ cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &reques
   const std::string file_path = request.Data["file_path"].asString();
   DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
+  if (file_path.empty())
+    {
+    return request.ReportError("No \"file_path\" given to parse");
+    }
+
   Json::Value obj = Json::objectValue;
   Json::Value& root = obj["parsed"] = Json::objectValue;
 
   cmServerParser p(this->CMakeInstance->GetState(),
                    file_path, cmSystemTools::GetCMakeRoot());
-  root["tokens"] = p.Parse(diff);
+  cmServerParser::ParseResult result = p.Parse(diff);
+  if (result.IsError)
+    {
+    return request.ReportError(result.ErrorMessage);
+    }
+  root["tokens"] = result.Result;
 
   auto& unreachable = root["unreachable"] = Json::arrayValue;
 
@@ -623,11 +636,10 @@ cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &reques
 
 cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
-
 
   const std::string filePath = request.Data["file_path"].asString();
   const long fileLine = request.Data["file_line"].asInt();
@@ -636,7 +648,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 
   if (fileLine <= 0)
     {
-    return request.ReportError("file_line is <= 0.");
+    return request.ReportError("\"file_line\" must be a positive integer.");
     }
 
   std::string content;
@@ -704,7 +716,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
               args[argIndex].Column > fileColumn)
             {
             return request.Reply(GenerateContextualHelp("command",
-                                                                                  listFile.Functions[funcIndex].Name));
+                                                        listFile.Functions[funcIndex].Name));
             }
           if (args[argIndex].Delim == cmListFileArgument::Unquoted)
             {
@@ -822,7 +834,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 
 cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -836,7 +848,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
 
   if (fileLine1 <= 0 || fileLine2 <= 0)
     {
-    return request.ReportError("File line is negative or 0.");
+    return request.ReportError("\"file_line1\" and \"file_line2\" must be positive integers.");
     }
 
   if (this->IsNotExecuted(filePath1, fileLine1)
@@ -928,7 +940,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
 
 cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -940,7 +952,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
 
   if (fileLine <= 0)
     {
-    return request.ReportError("File line is negative or 0.");
+    return request.ReportError("\"file_line\" must be a positive integer.");
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
@@ -987,7 +999,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
 
 cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
+  if (mState < INITIALIZED)
     {
     return request.ReportError("Not initialized yet.");
     }
@@ -999,7 +1011,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 
   if (fileLine <= 0)
     {
-    return request.ReportError("file_line is negative or 0.");
+    return request.ReportError("\"file_line\" must be a positive integer.");
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);

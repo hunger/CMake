@@ -132,6 +132,9 @@ private:
   Json::Value GenerateContextualHelp(std::string const& context,
                       std::string const& help_key);
 
+  enum State { INACTIVE, ACTIVE, CONFIGURED, COMPUTED, INITIALIZED };
+  State mState = INACTIVE;
+
   cmake *CMakeInstance;
   std::map<cmListFileContext, std::vector<cmState::Snapshot>, OrderFileThenLine> Snapshots;
 };

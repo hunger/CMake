@@ -6,6 +6,23 @@
 #include "cmServerDiff.h"
 #include "cmCommand.h"
 
+
+cmServerParser::ParseResult cmServerParser::ParseResult::ReportError(const std::string& message)
+{
+  ParseResult result;
+  result.IsError = true;
+  result.ErrorMessage = message;
+  return result;
+}
+
+cmServerParser::ParseResult cmServerParser::ParseResult::ReportResult(const Json::Value& data)
+{
+  ParseResult result;
+  result.IsError = false;
+  result.Result = data;
+  return result;
+}
+
 cmServerParser::cmServerParser(cmState* state,
                                const std::string& fileName, const std::string& rootDir)
   : Lexer(cmListFileLexer_New()), FileName(fileName),
@@ -86,21 +103,19 @@ void cmServerParser::Add(cmListFileLexer_Token* token, std::vector<Token>& value
   value.push_back(t);
 }
 
-Json::Value cmServerParser::Parse(DifferentialFileContent diff)
+cmServerParser::ParseResult cmServerParser::Parse(DifferentialFileContent diff)
 {
   cmListFileLexer_BOM bom;
   if(!cmListFileLexer_SetFileName(this->Lexer, this->FileName.c_str(), &bom))
     {
-    cmSystemTools::Error("cmListFileCache: error can not open file ",
-                         this->FileName.c_str());
-    return false;
+    return ParseResult::ReportError(std::string("Can not open file ") + this->FileName);
     }
 
   // Verify the Byte-Order-Mark, if any.
   if(bom != cmListFileLexer_BOM_None &&
      bom != cmListFileLexer_BOM_UTF8)
     {
-    return false;
+    return ParseResult::ReportError(std::string("Invalid BOM in file ") + this->FileName.c_str());
     }
 
   std::vector<Token> tokens;
@@ -163,7 +178,7 @@ Json::Value cmServerParser::Parse(DifferentialFileContent diff)
       this->Lexer = cmListFileLexer_New();
       if (!cmListFileLexer_SetString(this->Lexer, newString.c_str()))
         {
-        return false;
+        return ParseResult::ReportError("Parsing failed");
         }
       this->IsString = true;
       std::vector<Token> chunkTokens;
@@ -190,7 +205,7 @@ Json::Value cmServerParser::Parse(DifferentialFileContent diff)
     ret.append(obj);
     }
 
-  return ret;
+  return ParseResult::ReportResult(ret);
 }
 
 cmListFileLexer_Token* cmServerParser::Scan()

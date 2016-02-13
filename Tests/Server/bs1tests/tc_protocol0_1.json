@@ -3,8 +3,16 @@
 
 { "handshake": {"major": 0} },
 
+{ "message": "Testing uninitialized state" },
+
+{ "send": {"type":"foobar"} },
+{ "error": {"type":"foobar","message":"Unknown command!"} },
+
 { "send": {"type":"version"} },
 { "reply": {"type":"version"} },
+
+{ "send": {"type":"initialize"} },
+{ "error": {"type":"initialize","message":"\"buildDirectory\" is mandatory to initialize."} },
 
 { "send": {"type":"buildsystem"} },
 { "error": {"type":"buildsystem","message":"Not initialized yet."} },
@@ -18,9 +26,6 @@
 { "send": {"type":"content"} },
 { "error": {"type":"content","message":"Not initialized yet."} },
 
-{ "send": {"type":"parse"} },
-{ "error": {"type":"parse","message":"Not initialized yet."} },
-
 { "send": {"type":"contextual_help"} },
 { "error": {"type":"contextual_help","message":"Not initialized yet."} },
 
@@ -33,8 +38,67 @@
 { "send": {"type":"context_writers"} },
 { "error": {"type":"context_writers","message":"Not initialized yet."} },
 
+{ "send": {"type":"parse"} },
+{ "error": {"type":"parse","message":"No \"file_path\" given to parse"} },
+
+{ "send": {"type":"parse","file_path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
+{ "error": {"type":"parse","message":"Can not open file /DOES/NOT/EXIST/CMakeLists.txt"} },
+
+{ "send": {"type":"parse","file_path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
+{ "reply": {"type":"parse"} },
+
+{ "message": "Initializing" },
+
+{ "send": {"type":"initialize","buildDirectory":"%BUILDDIR%/buildsystem1","cookie":"TEST_INIT"} },
+{ "progress": {"type":"initialize","cookie":"TEST_INIT","current":0,"message":"initialized"} },
+{ "progress": {"type":"initialize","cookie":"TEST_INIT","current":1,"message":"configured"} },
+{ "progress": {"type":"initialize","cookie":"TEST_INIT","current":2,"message":"computed"} },
+{ "progress": {"type":"initialize","cookie":"TEST_INIT","current":3,"message":"done"} },
+{ "recv": {"type":"reply","inReplyTo":"initialize","cookie":"TEST_INIT","project_name":"buildsystem1","binary_dir":"%BUILDDIR%/buildsystem1","source_dir":"%SOURCEDIR%/buildsystem1"} },
+
+{ "message": "Initialized" },
+
 { "send": {"type":"foobar"} },
 { "error": {"type":"foobar","message":"Unknown command!"} },
+
+{ "send": {"type":"version"} },
+{ "reply": {"type":"version"} },
+
+{ "send": {"type":"initialize"} },
+{ "error": {"type":"initialize","message":"Already initialized."} },
+
+{ "send": {"type":"buildsystem"} },
+{ "reply": {"type":"buildsystem"} },
+
+{ "send": {"type":"target_info"} },
+{ "error": {"type":"target_info","message":"Failed to find target."} },
+
+{ "send": {"type":"file_info"} },
+{ "error": {"type":"file_info","message":"Target not found."} },
+
+{ "send": {"type":"content"} },
+{ "error": {"type":"content","message":"\"file_line\" must be a positive integer."} },
+
+{ "send": {"type":"contextual_help"} },
+{ "error": {"type":"contextual_help","message":"\"file_line\" must be a positive integer."} },
+
+{ "send": {"type":"content_diff"} },
+{ "error": {"type":"content_diff","message":"\"file_line1\" and \"file_line2\" must be positive integers."} },
+
+{ "send": {"type":"code_complete"} },
+{ "error": {"type":"code_complete","message":"\"file_line\" must be a positive integer."} },
+
+{ "send": {"type":"context_writers"} },
+{ "error": {"type":"context_writers","message":"\"file_line\" must be a positive integer."} },
+
+{ "send": {"type":"parse"} },
+{ "error": {"type":"parse","message":"No \"file_path\" given to parse"} },
+
+{ "send": {"type":"parse","file_path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
+{ "error": {"type":"parse","message":"Can not open file /DOES/NOT/EXIST/CMakeLists.txt"} },
+
+{ "send": {"type":"parse","file_path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
+{ "reply": {"type":"parse"} },
 
 { "message": "Everything ok." }
 ]

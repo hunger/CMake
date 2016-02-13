@@ -31,7 +31,20 @@ public:
            DifferentialFileContent diff, const char* name = 0,
            cmCommand* cmd = 0, std::vector<std::string> const& args = {});
 
-  Json::Value Parse(DifferentialFileContent diff);
+  class ParseResult {
+  public:
+    static ParseResult ReportError(const std::string &message);
+    static ParseResult ReportResult(const Json::Value &data);
+
+    Json::Value Result;
+    bool IsError;
+    std::string ErrorMessage;
+
+  private:
+    ParseResult() = default;
+  };
+
+  ParseResult Parse(DifferentialFileContent diff);
 
   bool ParseFunction(cmListFileLexer_Token* incomingToken,
                      std::vector<Token>& ret, DifferentialFileContent diff);
