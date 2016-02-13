@@ -73,6 +73,7 @@ public:
   virtual ~cmServerProtocol();
 
   virtual std::pair<int, int> protocolVersion() const = 0;
+  virtual void activate() = 0;
   virtual const cmServerResponse process(const cmServerRequest &request) = 0;
 };
 
@@ -95,6 +96,7 @@ public:
   ~cmServerProtocol0_1() override;
 
   std::pair<int, int> protocolVersion() const override;
+  void activate() override;
   const cmServerResponse process(const cmServerRequest &request) override;
 
 private:

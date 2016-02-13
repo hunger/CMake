@@ -21,6 +21,15 @@
 # include "cm_jsoncpp_reader.h"
 #endif
 
+const char TYPE_KEY[] = "type";
+const char COOKIE_KEY[] = "cookie";
+const char REPLY_TO_KEY[] = "inReplyTo";
+const char ERROR_MESSAGE_KEY[] = "errorMessage";
+
+const char ERROR_TYPE[] = "error";
+const char REPLY_TYPE[] = "reply";
+const char PROGRESS_TYPE[] = "progress";
+
 typedef struct {
   uv_write_t req;
   uv_buf_t buf;
@@ -105,7 +114,7 @@ void cmMetadataServer::PopOne()
     return;
     }
 
-  const cmServerRequest request(this, value["type"].asString(), value["cookie"].asString(), value);
+  const cmServerRequest request(this, value[TYPE_KEY].asString(), value[COOKIE_KEY].asString(), value);
 
   if (request.Type == "")
     {
@@ -191,9 +200,14 @@ cmServerResponse cmMetadataServer::SetProtocolVersion(const cmServerRequest& req
 
   Protocol = FindMatchingProtocol(SupportedProtocols, major, minor);
   if (Protocol)
+    {
+    Protocol->activate();
     return request.Reply(Json::objectValue);
+    }
   else
+    {
     return request.ReportError("Protocol version not supported.");
+    }
 }
 
 void cmMetadataServer::ServeMetadata()
@@ -205,7 +219,7 @@ void cmMetadataServer::ServeMetadata()
   assert(!Protocol);
 
   Json::Value hello = Json::objectValue;
-  hello["type"] = "hello";
+  hello[TYPE_KEY] = "hello";
 
   Json::Value& protocolVersions = hello["supportedProtocolVersions"] = Json::arrayValue;
 
@@ -261,9 +275,9 @@ void cmMetadataServer::WriteProgress(const cmServerRequest &request,
   assert(message.length() != 0);
 
   Json::Value obj = Json::objectValue;
-  obj["type"] = "progress";
-  obj["inResponseTo"] = request.Type;
-  obj["cookie"] = request.Cookie;
+  obj[TYPE_KEY] = PROGRESS_TYPE;
+  obj[REPLY_TO_KEY] = request.Type;
+  obj[COOKIE_KEY] = request.Cookie;
   obj["progressMessage"] = message;
   obj["progressMinimum"] = min;
   obj["progressMaximum"] = max;
@@ -275,10 +289,10 @@ void cmMetadataServer::WriteProgress(const cmServerRequest &request,
 void cmMetadataServer::WriteParseError(const std::string &message)
 {
   Json::Value obj = Json::objectValue;
-  obj["type"] = "error";
-  obj["errorMessage"] = message;
-  obj["inResponseTo"] = "";
-  obj["cookie"] = "";
+  obj[TYPE_KEY] = ERROR_TYPE;
+  obj[ERROR_MESSAGE_KEY] = message;
+  obj[REPLY_TO_KEY] = "";
+  obj[COOKIE_KEY] = "";
 
   WriteJsonObject(obj);
 }
@@ -286,7 +300,7 @@ void cmMetadataServer::WriteParseError(const std::string &message)
 void cmMetadataServer::WriteProgress(const std::string &progress)
 {
   Json::Value obj = Json::objectValue;
-  obj["type"] = "progress";
+  obj[TYPE_KEY] = PROGRESS_TYPE;
   obj["progress"] = progress;
   WriteJsonObject(obj);
 }
@@ -295,14 +309,14 @@ void cmMetadataServer::WriteResponse(const cmServerResponse &response)
 {
   assert(response.IsComplete());
 
-  Json::Value result = response.Data();
-  result["cookie"] = response.Cookie;
-  result["type"] = response.IsError() ? "error" : "reply";
-  result["inResponseTo"] = response.Type;
+  Json::Value obj = response.Data();
+  obj[COOKIE_KEY] = response.Cookie;
+  obj[TYPE_KEY] = response.IsError() ? ERROR_TYPE : REPLY_TYPE;
+  obj[REPLY_TO_KEY] = response.Type;
   if (response.IsError())
     {
-    result["errorMessage"] = response.ErrorMessage();
+    obj[ERROR_MESSAGE_KEY] = response.ErrorMessage();
     }
 
-  WriteJsonObject(result);
+  WriteJsonObject(obj);
 }

@@ -38,6 +38,32 @@ for obj in testdata:
              sys.exit(-1)
         else:
              if debug: print "Got expected response\n"
+    elif "reply" in obj:
+        data = obj["reply"]
+        if debug: print "Waiting for reply:", json.dumps(data)
+        originalType = ""
+        cookie = ""
+        if 'cookie' in data: cookie = data['cookie']
+        if 'type' in data: originalType = data['type']
+        cmakelib.waitForReply(proc, originalType, cookie)
+    elif "error" in obj:
+        data = obj["error"]
+        if debug: print "Waiting for error:", json.dumps(data)
+        originalType = ""
+        cookie = ""
+        message = ""
+        if 'cookie' in data: cookie = data['cookie']
+        if 'type' in data: originalType = data['type']
+        if 'message' in data: message = data['message']
+        cmakelib.waitForError(proc, originalType, cookie, message)
+    elif "handshake" in obj:
+        data = obj['handshake']
+        if debug: print "Doing handshake:" .json.dumps(data)
+        major = data['major']
+        minor = -1
+        if 'minor' in data:
+             minor = data['minor']
+        cmakelib.handshake(proc, major, minor)
     elif "message" in obj:
         print "MESSAGE:", obj["message"]
     else:

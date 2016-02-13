@@ -24,7 +24,7 @@ endmacro()
 
 do_test("test_handshake" "tc_handshake.json")
 
-# add_subdirectory(bs1tests)
+add_subdirectory(bs1tests)
 # add_subdirectory(bs2tests)
 
 add_executable(Server empty.cpp)

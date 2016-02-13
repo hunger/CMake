@@ -1,0 +1,40 @@
+[
+{ "message": "Testing basic protocol:" },
+
+{ "handshake": {"major": 0} },
+
+{ "send": {"type":"version"} },
+{ "reply": {"type":"version"} },
+
+{ "send": {"type":"buildsystem"} },
+{ "error": {"type":"buildsystem","message":"Not initialized yet."} },
+
+{ "send": {"type":"target_info"} },
+{ "error": {"type":"target_info","message":"Not initialized yet."} },
+
+{ "send": {"type":"file_info"} },
+{ "error": {"type":"file_info","message":"Not initialized yet."} },
+
+{ "send": {"type":"content"} },
+{ "error": {"type":"content","message":"Not initialized yet."} },
+
+{ "send": {"type":"parse"} },
+{ "error": {"type":"parse","message":"Not initialized yet."} },
+
+{ "send": {"type":"contextual_help"} },
+{ "error": {"type":"contextual_help","message":"Not initialized yet."} },
+
+{ "send": {"type":"content_diff"} },
+{ "error": {"type":"content_diff","message":"Not initialized yet."} },
+
+{ "send": {"type":"code_complete"} },
+{ "error": {"type":"code_complete","message":"Not initialized yet."} },
+
+{ "send": {"type":"context_writers"} },
+{ "error": {"type":"context_writers","message":"Not initialized yet."} },
+
+{ "send": {"type":"foobar"} },
+{ "error": {"type":"foobar","message":"Unknown command!"} },
+
+{ "message": "Everything ok." }
+]

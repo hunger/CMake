@@ -151,7 +151,7 @@ cmServerProtocol0_1::cmServerProtocol0_1()
   : CMakeInstance(0)
 {
 
-}
+  }
 
 cmServerProtocol0_1::~cmServerProtocol0_1()
 {
@@ -161,6 +161,13 @@ cmServerProtocol0_1::~cmServerProtocol0_1()
 std::pair<int, int> cmServerProtocol0_1::protocolVersion() const
 {
   return std::make_pair(0, 1);
+}
+
+void cmServerProtocol0_1::activate()
+{
+  assert(!CMakeInstance);
+  this->CMakeInstance = new cmake;
+  this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
 }
 
 const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &request)
@@ -226,8 +233,6 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
     return request.ReportError("\"buildDirectory\" is mandatory to initialize.");
     }
 
-  this->CMakeInstance = new cmake;
-  this->CMakeInstance->SetWorkingMode(cmake::SNAPSHOT_RECORD_MODE);
   std::set<std::string> emptySet;
   if(!this->CMakeInstance->GetState()->LoadCache(buildDir.c_str(),
                                                  true, emptySet, emptySet))
@@ -597,11 +602,6 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 
 cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &request)
 {
-  if (!CMakeInstance)
-    {
-    return request.ReportError("Not initialized yet.");
-    }
-
   const std::string file_path = request.Data["file_path"].asString();
   DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
