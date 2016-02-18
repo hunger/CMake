@@ -78,9 +78,11 @@ for obj in testData:
         if debug: print "Doing initialize:", json.dumps(data)
         bd = ""
         sd = ""
+        pn = ""
         if 'buildDir' in data: bd = data['buildDir']
-        if 'soureDir' in data: sd = data['sourceDir']
-        cmakelib.initialize(proc, sd, bd)
+        if 'sourceDir' in data: sd = data['sourceDir']
+        if 'project' in data: pn = data['project']
+        cmakelib.initialize(proc, pn, sd, bd)
     elif 'message' in obj:
         print "MESSAGE:", obj["message"]
     else:

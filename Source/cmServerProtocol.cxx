@@ -1,6 +1,7 @@
 /*============================================================================
-  CMake - Cross Platform Makefile Generator
+  CMake - Server Protocol Implementations
   Copyright 2015 Stephen Kelly <steveire@gmail.com>
+  Copyright 2015 Tobias Hunger <tobias.hunger@gmail.com>
 
   Distributed under the OSI-approved BSD License (the "License");
   see accompanying file Copyright.txt for details.
@@ -27,6 +28,74 @@
 # include "cm_jsoncpp_value.h"
 # include "cm_jsoncpp_reader.h"
 #endif
+
+const char TARGETINFO_TYPE[] = "targetInfo";
+
+const char PATH_KEY[] = "path";
+const char PATH1_KEY[] = "path1";
+const char PATH2_KEY[] = "path2";
+const char LINE_KEY[] = "line";
+const char LINE1_KEY[] = "line1";
+const char LINE2_KEY[] = "line2";
+const char COLUMN_KEY[] = "column";
+const char BEGIN_KEY[] = "begin";
+const char END_KEY[] = "end";
+const char KEY_KEY[] = "key";
+const char VALUE_KEY[] = "value";
+const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+const char BUILD_IMPORT_LIBRARY_KEY[] = "buildImportLibrary";
+const char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
+const char PROJECT_NAME_KEY[] = "project";
+const char TARGET_NAME_KEY[] = "target";
+const char TARGET_TYPE_KEY[] = "targetType";
+const char BACKTRACE_KEY[] = "backtrace";
+const char CONTENT_KEY[] = "content";
+const char CONFIGURATION_KEY[] = "configuration";
+const char CONFIGURATION_LIST_KEY[] = "configurations";
+const char TARGET_LIST_KEY[] = "targets";
+const char GLOBAL_TARGET_LIST_KEY[] = "globalTargets";
+const char LANGUAGE_KEY[] = "language";
+const char OBJECT_SOURCE_LIST_KEY[] = "objectSources";
+const char GENERATED_OBJECT_SOURCE_LIST_KEY[] = "generatedObjectSources";
+const char HEADER_SOURCE_LIST_KEY[] = "headerSources";
+const char GENERATED_HEADER_SOURCE_LIST_KEY[] = "generatedHeaderSources";
+const char COMPILE_DEFINITION_LIST_KEY[] = "compileDefinitions";
+const char COMPILE_FEATURES_LIST_KEY[] = "compileFeatures";
+const char COMPILE_OPTIONS_LIST_KEY[] = "compileOptions";
+const char INCLUDE_DIRECTORY_LIST_KEY[] = "includeDirectories";
+const char MATCHER_KEY[] = "matcher";
+const char RESULT_KEY[] = "result";
+const char CONTENT_RESULT_KEY[] = "contentResult";
+const char TOKENS_KEY[] = "tokens";
+const char UNREACHABLE_KEY[] = "unreachable";
+const char NO_CONTEXT_KEY[] = "noContext";
+const char ADDED_DEFINITIONS_LIST_KEY[] = "addedDefinitions";
+const char REMOVED_DEFINITIONS_LIST_KEY[] = "removedDefinitions";
+const char CONTEXT_ORIGIN_KEY[] = "contextOrigin";
+const char DEFINITION_MATCH_KEY[] = "definitionMatch";
+const char DEFINITION_ORIGIN_KEY[] = "definitionOrigin";
+const char CONTEXTUAL_HELP_KEY[] = "contextualHelp";
+const char CONTEXT_KEY[] = "context";
+const char HELPKEY_KEY[] = "helpKey";
+
+const char UNEXECUTED_VALUE[] = "unexecuted";
+const char NO_COMPLETION_VALUE[] = "noCompletions";
+const char NO_CONTEXT_VALUE[] = "noContext";
+
+static std::string INVALID_LINE_ERROR(const std::string &key)
+{
+    return std::string("\"") + key + std::string("\" must be a positive integer.");
+}
+
+static std::string KEY_IS_MANDATORY_ERROR(const std::string &key)
+{
+    return std::string("\"") + key + std::string("\" may not be unset.");
+}
+
+static std::string NOT_INITIALIZED_ERROR()
+{
+    return std::string("Not initialized yet.");
+}
 
 void getUnreachable(Json::Value& unreachable,
                     DifferentialFileContent const& diff,
@@ -61,8 +130,8 @@ void getUnreachable(Json::Value& unreachable,
     long offset = chunkIt->NewStart - chunkIt->OrigStart;
 
     Json::Value elem = Json::objectValue;
-    elem["begin"] = (int)(it->first + offset);
-    elem["end"] = (int)(it->second + offset);
+    elem[BEGIN_KEY] = (int)(it->first + offset);
+    elem[END_KEY] = (int)(it->second + offset);
     unreachable.append(elem);
     }
 }
@@ -101,14 +170,6 @@ cmServerResponse::cmServerResponse(const cmServerRequest &request)
 void cmServerResponse::setData(const Json::Value &data)
 {
   assert(mPayload == UNKNOWN);
-  for (auto i : data.getMemberNames())
-    {
-    if (i == "cookie" || i == "type")
-      {
-      setError("Response contains cookie or type field.");
-      return;
-      }
-    }
   mPayload = DATA;
   mData = data;
 }
@@ -186,11 +247,11 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
     {
     return ProcessBuildSystem(request);
     }
-  if (request.Type == "target_info")
+  if (request.Type == TARGETINFO_TYPE)
     {
     return ProcessTargetInfo(request);
     }
-  if (request.Type == "file_info")
+  if (request.Type == "fileInfo")
     {
     return ProcessFileInfo(request);
     }
@@ -202,19 +263,19 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
     {
     return ProcessParse(request);
     }
-  if (request.Type == "contextual_help")
+  if (request.Type == "contextualHelp")
     {
     return ProcessContextualHelp(request);
     }
-  if (request.Type == "content_diff")
+  if (request.Type == "contentDiff")
     {
     return ProcessContentDiff(request);
     }
-  if (request.Type == "code_complete")
+  if (request.Type == "codeComplete")
     {
     return ProcessCodeComplete(request);
     }
-  if (request.Type == "context_writers")
+  if (request.Type == "contextWriters")
     {
     return ProcessContextWriters(request);
     }
@@ -229,10 +290,10 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
     return request.ReportError("Already initialized.");
     }
 
-  std::string buildDir = request.Data["buildDirectory"].asString();
+  std::string buildDir = request.Data[BUILD_DIRECTORY_KEY].asString();
   if (buildDir.empty())
     {
-    return request.ReportError("\"buildDirectory\" is mandatory to initialize.");
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(BUILD_DIRECTORY_KEY));
     }
 
   std::set<std::string> emptySet;
@@ -299,9 +360,9 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
   request.ReportProgress(0, 3, 3, "done");
 
   Json::Value obj = Json::objectValue;
-  obj["source_dir"] = srcDir;
-  obj["binary_dir"] = this->CMakeInstance->GetState()->GetBinaryDirectory();
-  obj["project_name"] = this->CMakeInstance->GetGlobalGenerator()
+  obj[SOURCE_DIRECTORY_KEY] = srcDir;
+  obj[BUILD_DIRECTORY_KEY] = this->CMakeInstance->GetState()->GetBinaryDirectory();
+  obj[PROJECT_NAME_KEY] = this->CMakeInstance->GetGlobalGenerator()
       ->GetLocalGenerators()[0]->GetProjectName();
 
   return request.Reply(obj);
@@ -310,7 +371,7 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
 cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
 {
     Json::Value obj = Json::objectValue;
-    obj["version"] = CMake_VERSION;
+    obj[RESULT_KEY] = CMake_VERSION;
 
     return request.Reply(obj);
 }
@@ -319,16 +380,15 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
   Json::Value root = Json::objectValue;
-  Json::Value& obj = root["buildsystem"] = Json::objectValue;
 
   auto mf = this->CMakeInstance->GetGlobalGenerator()->GetMakefiles()[0];
   auto lg = this->CMakeInstance->GetGlobalGenerator()->GetLocalGenerators()[0];
 
-  Json::Value& configs = obj["configs"] = Json::arrayValue;
+  Json::Value& configs = root[CONFIGURATION_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> configsVec;
   mf->GetConfigurations(configsVec);
@@ -337,8 +397,8 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
     configs.append(config);
     }
 
-  Json::Value& globalTargets = obj["globalTargets"] = Json::arrayValue;
-  Json::Value& targets = obj["targets"] = Json::arrayValue;
+  Json::Value& globalTargets = root[GLOBAL_TARGET_LIST_KEY] = Json::arrayValue;
+  Json::Value& targets = root[TARGET_LIST_KEY] = Json::arrayValue;
   auto gens = this->CMakeInstance->GetGlobalGenerator()->GetLocalGenerators();
 
   auto firstMf =
@@ -365,8 +425,8 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
         continue;
         }
       Json::Value target = Json::objectValue;
-      target["name"] = tgt->GetName();
-      target["type"] = cmState::GetTargetTypeName(tgt->GetType());
+      target[TARGET_NAME_KEY] = tgt->GetName();
+      target[TARGET_TYPE_KEY] = cmState::GetTargetTypeName(tgt->GetType());
 
       if (tgt->GetType() <= cmState::UTILITY)
         {
@@ -375,19 +435,19 @@ cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &
         for (auto const& lbtF : lfbt.FrameContexts())
           {
           Json::Value fff = Json::objectValue;
-          fff["path"] = lbtF.FilePath;
-          fff["line"] = (int)lbtF.Line;
+          fff[PATH_KEY] = lbtF.FilePath;
+          fff[LINE_KEY] = (int)lbtF.Line;
           bt.append(fff);
           }
-        target["backtrace"] = bt;
+        target[BACKTRACE_KEY] = bt;
         if (tgt->GetType() < cmState::OBJECT_LIBRARY)
           {
 //          std::string fp = (*ittgt)->GetFullPath(config, false, true);
-//          targetValue["target_file"] = fp;
+//          targetValue["targetFile"] = fp;
           }
         }
       // Should be list?
-      target["projectName"] = lg->GetProjectName();
+      target[PROJECT_NAME_KEY] = lg->GetProjectName();
       targets.append(target);
       }
     }
@@ -399,19 +459,23 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 {
     if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  std::string tgtName = request.Data["target_name"].asString();
-  std::string config = request.Data["config"].asString();
-  const char* language = nullptr;
-  if (request.Data.isMember("language"))
+  std::string tgtName = request.Data[TARGET_NAME_KEY].asString();
+  if (tgtName.empty())
     {
-    language = request.Data["language"].asCString();
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(TARGET_NAME_KEY));
+    }
+  std::string config = request.Data[CONFIGURATION_KEY].asString();
+  const char* language = nullptr;
+  if (request.Data.isMember(LANGUAGE_KEY))
+    {
+    language = request.Data[LANGUAGE_KEY].asCString();
     }
 
   Json::Value obj = Json::objectValue;
-  Json::Value& root = obj["target_info"] = Json::objectValue;
+  Json::Value& root = obj[TARGETINFO_TYPE] = Json::objectValue;
 
   auto tgt =
       this->CMakeInstance->GetGlobalGenerator()->FindGeneratorTarget(tgtName);
@@ -421,16 +485,16 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     return request.ReportError("Failed to find target.");
     }
 
-  root["target_name"] = tgt->GetName();
+  root[TARGET_NAME_KEY] = tgt->GetName();
 
   if (tgt->GetType() != cmState::GLOBAL_TARGET
       && tgt->GetType() != cmState::UTILITY
       && tgt->GetType() != cmState::OBJECT_LIBRARY)
     {
-    root["build_location"] = tgt->GetLocation(config);
+    root[BUILD_DIRECTORY_KEY] = tgt->GetLocation(config);
     if (tgt->HasImportLibrary())
       {
-      root["build_implib"] = tgt->GetFullPath(config, true);
+      root[BUILD_IMPORT_LIBRARY_KEY] = tgt->GetFullPath(config, true);
       }
     }
 
@@ -438,8 +502,8 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
   tgt->GetObjectSources(files, config);
 
-  Json::Value& object_sources = root["object_sources"] = Json::arrayValue;
-  Json::Value& generated_object_sources = root["generated_object_sources"] = Json::arrayValue;
+  Json::Value& object_sources = root[OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& generated_object_sources = root[GENERATED_OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
   for (auto const& sf : files)
     {
     std::string filePath = sf->GetFullPath();
@@ -457,8 +521,8 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
   tgt->GetHeaderSources(files, config);
 
-  Json::Value& header_sources = root["header_sources"] = Json::arrayValue;
-  Json::Value& generated_header_sources = root["generated_header_sources"] = Json::arrayValue;
+  Json::Value& header_sources = root[HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& generated_header_sources = root[GENERATED_HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
   for (auto const& sf : files)
     {
     std::string filePath = sf->GetFullPath();
@@ -472,7 +536,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
       }
     }
 
-  Json::Value& target_defines = root["compile_definitions"] = Json::arrayValue;
+  Json::Value& target_defines = root[COMPILE_DEFINITION_LIST_KEY] = Json::arrayValue;
 
   std::string lang = language ? language : "C";
 
@@ -483,7 +547,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_defines.append(cdef);
     }
 
-  Json::Value& target_features = root["compile_features"] = Json::arrayValue;
+  Json::Value& target_features = root[COMPILE_FEATURES_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> features;
   tgt->GetCompileFeatures(cdefs, config);
@@ -492,7 +556,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_features.append(feature);
     }
 
-  Json::Value& target_options = root["compile_options"] = Json::arrayValue;
+  Json::Value& target_options = root[COMPILE_OPTIONS_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> options;
   tgt->GetCompileOptions(cdefs, config, lang);
@@ -501,7 +565,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_options.append(option);
     }
 
-  Json::Value& target_includes = root["include_directories"] = Json::arrayValue;
+  Json::Value& target_includes = root[INCLUDE_DIRECTORY_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> dirs;
   tgt->GetLocalGenerator()->GetIncludeDirectories(dirs, tgt, lang, config);
@@ -517,12 +581,12 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string tgtName = request.Data["target_name"].asString();
-  const std::string config = request.Data["config"].asString();
-  const std::string file_path = request.Data["file_path"].asString();
+  const std::string tgtName = request.Data[TARGET_NAME_KEY].asString();
+  const std::string config = request.Data[CONFIGURATION_KEY].asString();
+  const std::string file_path = request.Data[PATH_KEY].asString();
 
   auto tgt =
       this->CMakeInstance->GetGlobalGenerator()->FindGeneratorTarget(tgtName);
@@ -562,23 +626,23 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string filePath = request.Data["file_path"].asString();
-  const long fileLine = request.Data["file_line"].asInt();
+  const std::string filePath = request.Data[PATH_KEY].asString();
+  const long fileLine = request.Data[LINE_KEY].asInt();
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
-  const std::string matcher = request.Data["matcher"].asString();
+  const std::string matcher = request.Data[MATCHER_KEY].asString();
 
   if (fileLine <= 0)
     {
-    return request.ReportError("\"file_line\" must be a positive integer.");
+    return request.ReportError(INVALID_LINE_ERROR(LINE_KEY));
     }
 
   if (this->IsNotExecuted(filePath, fileLine))
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -586,7 +650,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
   if (res.second < 0)
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -596,7 +660,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
   if (!contentSnp.IsValid())
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -605,16 +669,15 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 
 cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &request)
 {
-  const std::string file_path = request.Data["file_path"].asString();
+  const std::string file_path = request.Data[PATH_KEY].asString();
   DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
   if (file_path.empty())
     {
-    return request.ReportError("No \"file_path\" given to parse");
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(PATH_KEY));
     }
 
   Json::Value obj = Json::objectValue;
-  Json::Value& root = obj["parsed"] = Json::objectValue;
 
   cmServerParser p(this->CMakeInstance->GetState(),
                    file_path, cmSystemTools::GetCMakeRoot());
@@ -623,9 +686,9 @@ cmServerResponse cmServerProtocol0_1::ProcessParse(const cmServerRequest &reques
     {
     return request.ReportError(result.ErrorMessage);
     }
-  root["tokens"] = result.Result;
+  obj[TOKENS_KEY] = result.Result;
 
-  auto& unreachable = root["unreachable"] = Json::arrayValue;
+  auto& unreachable = obj[UNREACHABLE_KEY] = Json::arrayValue;
 
   auto nx = this->CMakeInstance->GetState()->GetNotExecuted(file_path);
 
@@ -638,17 +701,17 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string filePath = request.Data["file_path"].asString();
-  const long fileLine = request.Data["file_line"].asInt();
-  const long fileColumn = request.Data["file_column"].asInt();
-  const std::string fileContent = request.Data["file_content"].asString();
+  const std::string filePath = request.Data[PATH_KEY].asString();
+  const long fileLine = request.Data[LINE_KEY].asInt();
+  const long fileColumn = request.Data[COLUMN_KEY].asInt();
+  const std::string fileContent = request.Data[CONTENT_KEY].asString();
 
   if (fileLine <= 0)
     {
-    return request.ReportError("\"file_line\" must be a positive integer.");
+    return request.ReportError(INVALID_LINE_ERROR(LINE_KEY));
     }
 
   std::string content;
@@ -681,10 +744,10 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
     if (listFile.Functions[funcIndex].Line > fileLine)
       {
       Json::Value obj = Json::objectValue;
-      Json::Value& contextual_help =
-          obj["contextual_help"] = Json::objectValue;
+      Json::Value& contextualHelp =
+          obj[RESULT_KEY] = Json::objectValue;
 
-      contextual_help["nocontext"] = true;
+      contextualHelp[NO_CONTEXT_KEY] = true;
 
       return request.Reply(obj);
       }
@@ -836,19 +899,23 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string filePath1 = request.Data["file_path1"].asString();
-  const long fileLine1 = request.Data["file_line1"].asInt();
-  const std::string filePath2 = request.Data["file_path2"].asString();
-  const long fileLine2 = request.Data["file_line2"].asInt();
+  const std::string filePath1 = request.Data[PATH1_KEY].asString();
+  const long fileLine1 = request.Data[LINE1_KEY].asInt();
+  const std::string filePath2 = request.Data[PATH2_KEY].asString();
+  const long fileLine2 = request.Data[LINE2_KEY].asInt();
   const std::pair<DifferentialFileContent, DifferentialFileContent> diffs
           = cmServerDiff::GetDiffs(request.Data);
 
-  if (fileLine1 <= 0 || fileLine2 <= 0)
+  if (fileLine1 <= 0)
     {
-    return request.ReportError("\"file_line1\" and \"file_line2\" must be positive integers.");
+    return request.ReportError(INVALID_LINE_ERROR(LINE1_KEY));
+    }
+  if (fileLine2 <= 0)
+    {
+    return request.ReportError(INVALID_LINE_ERROR(LINE2_KEY));
     }
 
   if (this->IsNotExecuted(filePath1, fileLine1)
@@ -856,7 +923,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     {
     Json::Value obj = Json::objectValue;
 
-    obj["content_result"] = "unexecuted";
+    obj[RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -864,7 +931,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   if (res1.second < 0)
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -872,7 +939,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   if (res2.second < 0)
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -882,7 +949,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   if (!contentSnp1.IsValid())
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
@@ -892,19 +959,19 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   if (!contentSnp2.IsValid())
     {
     Json::Value obj = Json::objectValue;
-    obj["content_result"] = "unexecuted";
+    obj[RESULT_KEY] = UNEXECUTED_VALUE;
     return request.Reply(obj);
     }
 
   Json::Value obj = Json::objectValue;
 
-  Json::Value& content = obj["content_diff"] = Json::objectValue;
+  Json::Value& content = obj[RESULT_KEY] = Json::objectValue;
 
   std::vector<std::string> keys1 = contentSnp1.ClosureKeys();
   std::vector<std::string> keys2 = contentSnp2.ClosureKeys();
 
-  auto& addedDefs = content["addedDefs"] = Json::arrayValue;
-  auto& removedDefs = content["removedDefs"] = Json::arrayValue;
+  auto& addedDefs = content[ADDED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
+  auto& removedDefs = content[REMOVED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
 
   for(auto key : keys2)
     {
@@ -916,8 +983,8 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
         && !strcmp(d1, d2))
       continue;
     Json::Value def = Json::objectValue;
-    def["key"] = key;
-    def["value"] = contentSnp2.GetDefinition(key);
+    def[KEY_KEY] = key;
+    def[VALUE_KEY] = contentSnp2.GetDefinition(key);
     addedDefs.append(def);
     }
 
@@ -930,8 +997,8 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
     if (!strcmp(d1, d2))
       continue;
     Json::Value def = Json::objectValue;
-    def["key"] = key;
-    def["value"] = contentSnp1.GetDefinition(key);
+    def[KEY_KEY] = key;
+    def[VALUE_KEY] = contentSnp1.GetDefinition(key);
     removedDefs.append(def);
     }
 
@@ -942,24 +1009,24 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string filePath = request.Data["file_path"].asString();
-  const long fileLine = request.Data["file_line"].asInt();
-  const long fileColumn = request.Data["file_column"].asInt();
+  const std::string filePath = request.Data[PATH_KEY].asString();
+  const long fileLine = request.Data[LINE_KEY].asInt();
+  const long fileColumn = request.Data[COLUMN_KEY].asInt();
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
   if (fileLine <= 0)
     {
-    return request.ReportError("\"file_line\" must be a positive integer.");
+    return request.ReportError(INVALID_LINE_ERROR(LINE_KEY));
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
   if (res.second < 0)
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_completions";
+    obj[RESULT_KEY] = NO_COMPLETION_VALUE;
     return request.Reply(obj);
     }
 
@@ -969,7 +1036,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
   if (!completionSnp.IsValid())
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_completions";
+    obj[RESULT_KEY] = NO_COMPLETION_VALUE;
     return request.Reply(obj);
     }
 
@@ -1001,24 +1068,24 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 {
   if (mState < INITIALIZED)
     {
-    return request.ReportError("Not initialized yet.");
+    return request.ReportError(NOT_INITIALIZED_ERROR());
     }
 
-  const std::string filePath = request.Data["file_path"].asString();
-  const long fileLine = request.Data["file_line"].asInt();
-  const long fileColumn = request.Data["file_column"].asInt();
+  const std::string filePath = request.Data[PATH_KEY].asString();
+  const long fileLine = request.Data[LINE_KEY].asInt();
+  const long fileColumn = request.Data[COLUMN_KEY].asInt();
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
 
   if (fileLine <= 0)
     {
-    return request.ReportError("\"file_line\" must be a positive integer.");
+    return request.ReportError(INVALID_LINE_ERROR(LINE_KEY));
     }
 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
   if (res.second < 0)
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
@@ -1028,7 +1095,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
   if (!completionSnp.IsValid())
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
@@ -1054,28 +1121,28 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
                        desired.second, completionPrefix,
                        newToParse, fileColumn);
 
-  if (!result.isMember("context_origin"))
+  if (!result.isMember(CONTEXT_ORIGIN_KEY))
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
-  if (!result["context_origin"].isMember("matcher"))
+  if (!result[CONTEXT_ORIGIN_KEY].isMember(MATCHER_KEY))
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
-  auto varName = result["context_origin"]["matcher"].asString();
+  auto varName = result[CONTEXT_ORIGIN_KEY][MATCHER_KEY].asString();
 
   auto snps = this->CMakeInstance->GetState()->GetWriters(completionSnp, varName);
 
   if (snps.empty())
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
@@ -1089,22 +1156,22 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
   if (it == this->Snapshots.end())
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
   if (it->second.empty())
     {
     Json::Value obj = Json::objectValue;
-    obj["result"] = "no_context";
+    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
     return request.Reply(obj);
     }
 
   ++it;
 
   Json::Value obj = Json::objectValue;
-  obj["def_match"] = varName;
-  obj["def_origin"] = (int)it->first.Line - 1;
+  obj[DEFINITION_MATCH_KEY] = varName;
+  obj[DEFINITION_ORIGIN_KEY] = (int)it->first.Line - 1;
   return request.Reply(obj);
 }
 
@@ -1284,7 +1351,7 @@ Json::Value cmServerProtocol0_1::GenerateContent(cmState::Snapshot snp, std::str
 {
   Json::Value obj = Json::objectValue;
 
-  Json::Value& content = obj["content"] = Json::objectValue;
+  Json::Value& content = obj[CONTENT_KEY] = Json::objectValue;
 
   std::vector<std::string> keys = snp.ClosureKeys();
   for (const auto& p: keys)
@@ -1310,11 +1377,11 @@ Json::Value cmServerProtocol0_1::GenerateContextualHelp(const std::string &conte
     }
   Json::Value obj = Json::objectValue;
 
-  Json::Value& contextual_help =
-      obj["contextual_help"] = Json::objectValue;
+  Json::Value& contextualHelp =
+      obj[CONTEXTUAL_HELP_KEY] = Json::objectValue;
 
-  contextual_help["context"] = context;
-  contextual_help["help_key"] = relevant;
+  contextualHelp[CONTEXT_KEY] = context;
+  contextualHelp[HELPKEY_KEY] = relevant;
 
   return obj;
 }
@@ -1344,10 +1411,10 @@ Json::Value cmServerProtocol0_1::EmitTypedIdentifier(const std::string &commandN
   switch (contextType)
     {
   case cmCommand::TargetPropertyParameter:
-    context = "prop_tgt";
+    context = "propertyTarget";
     break;
   case cmCommand::DirectoryPropertyParameter:
-    context = "prop_dir";
+    context = "propertyDirectory";
     break;
   case cmCommand::VariableIdentifierParameter:
     context = "variable";

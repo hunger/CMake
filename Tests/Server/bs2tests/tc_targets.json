@@ -1,0 +1,16 @@
+[
+{ "message": "Testing target_info:" },
+
+{ "handshake": {"major": 0} },
+
+{ "message": "Initializing" },
+
+{ "initialize": {"project":"buildsystem2", "buildDir":"%BUILDDIR%/buildsystem2","sourceDir":"%SOURCEDIR%/buildsystem2"} },
+
+{ "message": "Initialized" },
+
+{ "send": {"type":"buildsystem", "cookie":"bscall"} },
+{ "recv": {"configurations":[],"globalTargets":["edit_cache","rebuild_cache"],"targets":[{"backtrace":[{"line":9,"path":"CMakeLists.txt"}],"target":"main","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":11,"path":"CMakeLists.txt"}],"target":"m_other","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":13,"path":"CMakeLists.txt"}],"target":"foo","project":"buildsystem2","targetType":"STATIC_LIBRARY"},{"backtrace":[{"line":5,"path":"subdir/CMakeLists.txt"}],"target":"ooo","project":"buildsystem2","targetType":"EXECUTABLE"}],"cookie":"bscall","inReplyTo":"buildsystem","type":"reply"} },
+
+{ "message": "Everything ok." }
+]

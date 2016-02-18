@@ -40,6 +40,9 @@ int cmServerParser::TransformLine(long line, DifferentialFileContent diff)
 {
   auto const& chunks = diff.Chunks;
 
+  if (chunks.empty())
+      return line;
+
   auto chunkIt = std::lower_bound(chunks.begin(), chunks.end(), line,
                      [](const Chunk& lhs, long rhs)
     {

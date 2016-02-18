@@ -92,10 +92,12 @@ def waitForMessage(cmakeCommand, expected):
   packet = ordered(waitForRawMessage(cmakeCommand))
 
   if packet != data:
+    print "ERROR: Received packet:\n", json.dumps(packet), "\nis not equal to expected packet:\n", json.dumps(data)
     sys.exit(-1)
 
 def waitForReply(cmakeCommand, originalType, cookie):
   packet = waitForRawMessage(cmakeCommand)
+  print "Got reply:", json.dumps(packet)
   if packet['cookie'] != cookie or packet['type'] != 'reply' or packet['inReplyTo'] != originalType:
     sys.exit(1)
 
@@ -117,11 +119,11 @@ def handshake(cmakeCommand, major, minor):
   writePayload(cmakeCommand, { 'type': 'handshake', 'protocolVersion': version, 'cookie': 'TEST_HANDSHAKE' })
   waitForReply(cmakeCommand, 'handshake', 'TEST_HANDSHAKE')
 
-def initialize(cmakeCommand, sourceDir, buildDir):
+def initialize(cmakeCommand, projectName, sourceDir, buildDir):
   writePayload(cmakeCommand, { 'type': 'initialize', 'buildDirectory': buildDir, 'cookie': 'TEST_INIT' })
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 0, 'initialized')
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 1, 'configured')
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 2, 'computed')
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 3, 'done')
-  waitForMessage(cmakeCommand, {"binary_dir":buildDir,"cookie":"TEST_INIT","inReplyTo":"initialize","project_name":"CMake","source_dir":sourceDir,"type":"reply"})
+  waitForMessage(cmakeCommand, {"buildDirectory":buildDir,"cookie":"TEST_INIT","inReplyTo":"initialize","project":projectName,"sourceDirectory":sourceDir,"type":"reply"})
 

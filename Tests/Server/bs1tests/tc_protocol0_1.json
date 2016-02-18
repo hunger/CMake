@@ -12,39 +12,39 @@
 { "reply": {"type":"version"} },
 
 { "send": {"type":"initialize"} },
-{ "error": {"type":"initialize","message":"\"buildDirectory\" is mandatory to initialize."} },
+{ "error": {"type":"initialize","message":"\"buildDirectory\" may not be unset."} },
 
 { "send": {"type":"buildsystem"} },
 { "error": {"type":"buildsystem","message":"Not initialized yet."} },
 
-{ "send": {"type":"target_info"} },
-{ "error": {"type":"target_info","message":"Not initialized yet."} },
+{ "send": {"type":"targetInfo"} },
+{ "error": {"type":"targetInfo","message":"Not initialized yet."} },
 
-{ "send": {"type":"file_info"} },
-{ "error": {"type":"file_info","message":"Not initialized yet."} },
+{ "send": {"type":"fileInfo"} },
+{ "error": {"type":"fileInfo","message":"Not initialized yet."} },
 
 { "send": {"type":"content"} },
 { "error": {"type":"content","message":"Not initialized yet."} },
 
-{ "send": {"type":"contextual_help"} },
-{ "error": {"type":"contextual_help","message":"Not initialized yet."} },
+{ "send": {"type":"contextualHelp"} },
+{ "error": {"type":"contextualHelp","message":"Not initialized yet."} },
 
-{ "send": {"type":"content_diff"} },
-{ "error": {"type":"content_diff","message":"Not initialized yet."} },
+{ "send": {"type":"contentDiff"} },
+{ "error": {"type":"contentDiff","message":"Not initialized yet."} },
 
-{ "send": {"type":"code_complete"} },
-{ "error": {"type":"code_complete","message":"Not initialized yet."} },
+{ "send": {"type":"codeComplete"} },
+{ "error": {"type":"codeComplete","message":"Not initialized yet."} },
 
-{ "send": {"type":"context_writers"} },
-{ "error": {"type":"context_writers","message":"Not initialized yet."} },
+{ "send": {"type":"contextWriters"} },
+{ "error": {"type":"contextWriters","message":"Not initialized yet."} },
 
 { "send": {"type":"parse"} },
-{ "error": {"type":"parse","message":"No \"file_path\" given to parse"} },
+{ "error": {"type":"parse","message":"\"path\" may not be unset."} },
 
-{ "send": {"type":"parse","file_path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
+{ "send": {"type":"parse","path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
 { "error": {"type":"parse","message":"Can not open file /DOES/NOT/EXIST/CMakeLists.txt"} },
 
-{ "send": {"type":"parse","file_path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
+{ "send": {"type":"parse","path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
 { "reply": {"type":"parse"} },
 
 { "message": "Initializing" },
@@ -54,7 +54,7 @@
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":1,"message":"configured"} },
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":2,"message":"computed"} },
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":3,"message":"done"} },
-{ "recv": {"type":"reply","inReplyTo":"initialize","cookie":"TEST_INIT","project_name":"buildsystem1","binary_dir":"%BUILDDIR%/buildsystem1","source_dir":"%SOURCEDIR%/buildsystem1"} },
+{ "recv": {"type":"reply","inReplyTo":"initialize","cookie":"TEST_INIT","project":"buildsystem1","buildDirectory":"%BUILDDIR%/buildsystem1","sourceDirectory":"%SOURCEDIR%/buildsystem1"} },
 
 { "message": "Initialized" },
 
@@ -70,34 +70,34 @@
 { "send": {"type":"buildsystem"} },
 { "reply": {"type":"buildsystem"} },
 
-{ "send": {"type":"target_info"} },
-{ "error": {"type":"target_info","message":"Failed to find target."} },
+{ "send": {"type":"targetInfo"} },
+{ "error": {"type":"targetInfo","message":"\"target\" may not be unset."} },
 
-{ "send": {"type":"file_info"} },
-{ "error": {"type":"file_info","message":"Target not found."} },
+{ "send": {"type":"fileInfo"} },
+{ "error": {"type":"fileInfo","message":"Target not found."} },
 
 { "send": {"type":"content"} },
-{ "error": {"type":"content","message":"\"file_line\" must be a positive integer."} },
+{ "error": {"type":"content","message":"\"line\" must be a positive integer."} },
 
-{ "send": {"type":"contextual_help"} },
-{ "error": {"type":"contextual_help","message":"\"file_line\" must be a positive integer."} },
+{ "send": {"type":"contextualHelp"} },
+{ "error": {"type":"contextualHelp","message":"\"line\" must be a positive integer."} },
 
-{ "send": {"type":"content_diff"} },
-{ "error": {"type":"content_diff","message":"\"file_line1\" and \"file_line2\" must be positive integers."} },
+{ "send": {"type":"contentDiff"} },
+{ "error": {"type":"contentDiff","message":"\"line1\" must be a positive integer."} },
 
-{ "send": {"type":"code_complete"} },
-{ "error": {"type":"code_complete","message":"\"file_line\" must be a positive integer."} },
+{ "send": {"type":"codeComplete"} },
+{ "error": {"type":"codeComplete","message":"\"line\" must be a positive integer."} },
 
-{ "send": {"type":"context_writers"} },
-{ "error": {"type":"context_writers","message":"\"file_line\" must be a positive integer."} },
+{ "send": {"type":"contextWriters"} },
+{ "error": {"type":"contextWriters","message":"\"line\" must be a positive integer."} },
 
 { "send": {"type":"parse"} },
-{ "error": {"type":"parse","message":"No \"file_path\" given to parse"} },
+{ "error": {"type":"parse","message":"\"path\" may not be unset."} },
 
-{ "send": {"type":"parse","file_path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
+{ "send": {"type":"parse","path":"/DOES/NOT/EXIST/CMakeLists.txt"} },
 { "error": {"type":"parse","message":"Can not open file /DOES/NOT/EXIST/CMakeLists.txt"} },
 
-{ "send": {"type":"parse","file_path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
+{ "send": {"type":"parse","path":"%SOURCEDIR%/buildsystem1/CMakeLists.txt"} },
 { "reply": {"type":"parse"} },
 
 { "message": "Everything ok." }
