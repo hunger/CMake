@@ -77,7 +77,7 @@
 { "error": {"type":"fileInfo","message":"\"target\" may not be unset."} },
 
 { "send": {"type":"content"} },
-{ "error": {"type":"content","message":"\"line\" must be a positive integer."} },
+{ "error": {"type":"content","message":"\"path\" may not be unset."} },
 
 { "send": {"type":"contextualHelp"} },
 { "error": {"type":"contextualHelp","message":"\"line\" must be a positive integer."} },

@@ -768,6 +768,7 @@ if (LIBUV_LIBRARY
     cmServerParser.h
     cmServerProtocol.cxx
     cmServerProtocol.h
+    cmServerVocabulary.h
   )
   target_link_libraries(CMakeServerLib CMakeLib ${LIBUV_LIBRARY})
   target_include_directories(CMakeServerLib

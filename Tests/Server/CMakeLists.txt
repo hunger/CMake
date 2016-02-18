@@ -25,6 +25,7 @@ macro(do_test bsname file)
 endmacro()
 
 do_test("test_handshake" "tc_handshake.json")
+do_test("test_generators" "tc_generators.json")
 
 add_subdirectory(bs1tests)
 add_subdirectory(bs2tests)

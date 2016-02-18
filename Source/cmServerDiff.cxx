@@ -11,6 +11,7 @@
 ============================================================================*/
 
 #include "cmServerDiff.h"
+#include "cmServerVocabulary.h"
 
 #include "cmSystemTools.h"
 
@@ -152,12 +153,12 @@ DifferentialFileContent GetDiffImpl(Json::Value value,
 std::pair<DifferentialFileContent, DifferentialFileContent>
 cmServerDiff::GetDiffs(Json::Value value)
 {
-  return std::make_pair(GetDiffImpl(value, "file_path1", "file_content1"),
-                        GetDiffImpl(value, "file_path2", "file_content2"));
+  return std::make_pair(GetDiffImpl(value, PATH1_KEY, CONTENTS_KEY1),
+                        GetDiffImpl(value, PATH2_KEY, CONTENTS_KEY2));
 }
 
 
 DifferentialFileContent cmServerDiff::GetDiff(Json::Value value)
 {
-  return GetDiffImpl(value, "file_path", "file_content");
+  return GetDiffImpl(value, PATH_KEY, CONTENTS_KEY);
 }

@@ -1,0 +1,10 @@
+[
+{ "message": "Testing generators:" },
+
+{ "handshake": { "major": 0 } },
+
+{ "send": {"cookie":"gen1","type": "generators"} },
+{ "reply": {"cookie":"gen1","type":"generators"} },
+
+{ "message": "Everything ok." }
+]

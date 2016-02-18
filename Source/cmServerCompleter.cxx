@@ -5,6 +5,7 @@
 #include "cmGlobalGenerator.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmServerVocabulary.h"
 
 #include <cmsys/Glob.hxx>
 
@@ -13,15 +14,6 @@ cmServerCompleter::cmServerCompleter(cmake* cm, cmState::Snapshot snp,
   : CMakeInstance(cm), Snapshot(snp), mOriginMode(originMode)
 {
 
-}
-
-Json::Value noCompletions()
-{
-  Json::Value root = Json::objectValue;
-
-  Json::Value& obj = root["completion"] = Json::objectValue;
-  obj["result"] = "no_completions";
-  return root;
 }
 
 Json::Value cmServerCompleter::Complete(cmState::Snapshot snp,
@@ -36,7 +28,7 @@ Json::Value cmServerCompleter::Complete(cmState::Snapshot snp,
         {
         if (fn.Column > fileColumn)
           {
-          return noCompletions();
+          return NO_COMPLETION_VALUE;
           }
         if (fileColumn <= long(fn.Column + fn.Name.size()))
           {
@@ -44,12 +36,12 @@ Json::Value cmServerCompleter::Complete(cmState::Snapshot snp,
           }
         if (fileLine < fn.Line)
           {
-          return noCompletions();
+          return NO_COMPLETION_VALUE;
           }
         assert(fileLine == fn.Line);
         if (fileColumn < fn.OpenParenColumn)
           {
-          return noCompletions();
+          return NO_COMPLETION_VALUE;
           }
         }
       return this->CodeCompleteParameter(snp, &fn,
@@ -60,7 +52,7 @@ Json::Value cmServerCompleter::Complete(cmState::Snapshot snp,
 
   if(matcher.back() == ' ')
     {
-    return noCompletions();
+    return NO_COMPLETION_VALUE;
     }
   // Make sure we are not in a block- or long-bracket- comment?
   // Store that fact in the cmListFile?
@@ -86,7 +78,7 @@ Json::Value cmServerCompleter::CodeCompleteParameter(cmState::Snapshot snp,
 
   if (!cmd)
     {
-    return noCompletions();
+    return NO_COMPLETION_VALUE;
     }
 
   std::vector<std::string> params;
@@ -177,7 +169,7 @@ Json::Value cmServerCompleter::CodeCompleteParameter(cmState::Snapshot snp,
           return this->VariableMatch(snp, context);
           }
         }
-      return noCompletions();
+      return NO_COMPLETION_VALUE;
       }
 
     matcher = line.substr(0, fileColumn);
@@ -213,11 +205,9 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
     {
     auto mfs = this->CMakeInstance->GetGlobalGenerator()->GetMakefiles();
 
-    Json::Value root = Json::objectValue;
-
-    Json::Value& obj = root["completion"] = Json::objectValue;
-    obj["matcher"] = matcher;
-    auto& targets = obj["targets"] = Json::arrayValue;
+    Json::Value obj = Json::objectValue;
+    obj[MATCHER_KEY] = matcher;
+    auto& targets = obj[TARGET_LIST_KEY] = Json::arrayValue;
 
     for (auto& mf : mfs)
       {
@@ -237,16 +227,14 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
           }
         }
       }
-    return root;
+    return obj;
     }
     case cmCommand::KeywordParameter:
     {
     auto options = cmd->GetKeywords(params, params.size());
-    Json::Value root = Json::objectValue;
-
-    Json::Value& obj = root["completion"] = Json::objectValue;
-    obj["matcher"] = matcher;
-    auto& keywords = obj["keywords"] = Json::arrayValue;
+    Json::Value obj = Json::objectValue;
+    obj[MATCHER_KEY] = matcher;
+    auto& keywords = obj[KEYWORDS_KEY] = Json::arrayValue;
     for (auto& opt : options)
       {
       if (cmSystemTools::StringStartsWith(opt.c_str(), matcher.c_str()))
@@ -254,17 +242,16 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
         keywords.append(opt);
         }
       }
-    return root;
+    return obj;
     }
     case cmCommand::PackageNameParameter:
     {
-    Json::Value root = Json::objectValue;
+    Json::Value obj = Json::objectValue;
 
     auto options = this->GetPackageNames(snp);
 
-    Json::Value& obj = root["completion"] = Json::objectValue;
-    obj["matcher"] = matcher;
-    auto& packages = obj["packages"] = Json::arrayValue;
+    obj[MATCHER_KEY] = matcher;
+    auto& packages = obj[PACKAGES_KEY] = Json::arrayValue;
     for (auto& opt : options)
       {
       if (cmSystemTools::StringStartsWith(opt.c_str(), matcher.c_str()))
@@ -272,17 +259,16 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
         packages.append(opt);
         }
       }
-    return root;
+    return obj;
     }
     case cmCommand::ModuleNameParameter:
     {
-    Json::Value root = Json::objectValue;
+    Json::Value obj = Json::objectValue;
 
     auto options = this->GetModuleNames(snp);
 
-    Json::Value& obj = root["completion"] = Json::objectValue;
-    obj["matcher"] = matcher;
-    auto& modules = obj["modules"] = Json::arrayValue;
+    obj[MATCHER_KEY] = matcher;
+    auto& modules = obj[MODULES_KEY] = Json::arrayValue;
     for (auto& opt : options)
       {
       if (cmSystemTools::StringStartsWith(opt.c_str(), matcher.c_str()))
@@ -290,16 +276,14 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
         modules.append(opt);
         }
       }
-    return root;
+    return obj;
     }
     case cmCommand::PolicyParameter:
     {
-    Json::Value root = Json::objectValue;
-
-    Json::Value& obj = root["completion"] = Json::objectValue;
-    obj["matcher"] = matcher;
-    auto& policies = obj["policies"] = Json::arrayValue;
-    auto& descriptions = obj["descriptions"] = Json::arrayValue;
+    Json::Value obj = Json::objectValue;
+    obj[MATCHER_KEY] = matcher;
+    auto& policies = obj[POLICIES_KEY] = Json::arrayValue;
+    auto& descriptions = obj[DESCRIPTION_KEY] = Json::arrayValue;
 
 #define CM_SELECT_ID_DOC(F, A1, A2, A3, A4, A5, A6) F(A1, A2)
 #define CM_FOR_EACH_POLICY_ID_DOC(POLICY) \
@@ -314,12 +298,12 @@ Json::Value cmServerCompleter::doComplete(cmCommand::ParameterContext ctx,
   CM_FOR_EACH_POLICY_ID_DOC(POLICY_CASE)
 #undef POLICY_CASE
 
-    return root;
+    return obj;
     }
   default:
     break;
     }
-  return noCompletions();
+  return NO_COMPLETION_VALUE;
 }
 
 std::vector<std::string> cmServerCompleter::GetPackageNames(cmState::Snapshot snp) const
@@ -434,8 +418,8 @@ Json::Value cmServerCompleter::VariableMatch(cmState::Snapshot snp,
   (void)snp;
   Json::Value root = Json::objectValue;
 
-  Json::Value& obj = root["context_origin"] = Json::objectValue;
-  obj["matcher"] = matcher;
+  Json::Value& obj = root[CONTEXT_ORIGIN_KEY] = Json::objectValue;
+  obj[MATCHER_KEY] = matcher;
   return root;
 }
 
@@ -443,11 +427,10 @@ Json::Value cmServerCompleter::CodeCompleteVariable(cmState::Snapshot snp,
                                             std::string matcher)
 {
   auto defs = snp.ClosureKeys();
-  Json::Value root = Json::objectValue;
+  Json::Value obj = Json::objectValue;
 
-  Json::Value& obj = root["completion"] = Json::objectValue;
-  obj["matcher"] = matcher;
-  auto& variables = obj["variables"] = Json::arrayValue;
+  obj[MATCHER_KEY] = matcher;
+  auto& variables = obj[VARIABLES_KEY] = Json::arrayValue;
   for (auto& def : defs)
     {
     if (def.find(matcher) == 0)
@@ -455,7 +438,7 @@ Json::Value cmServerCompleter::CodeCompleteVariable(cmState::Snapshot snp,
       variables.append(def);
       }
     }
-  return root;
+  return obj;
 }
 
 Json::Value cmServerCompleter::CodeCompleteCommand(cmState::Snapshot snp,
@@ -463,11 +446,9 @@ Json::Value cmServerCompleter::CodeCompleteCommand(cmState::Snapshot snp,
 {
   auto cmds = snp.GetState()->GetCommandNames();
 
-  Json::Value root = Json::objectValue;
-
-  Json::Value& obj = root["completion"] = Json::objectValue;
-  obj["matcher"] = matcher;
-  auto& commands = obj["commands"] = Json::arrayValue;
+  Json::Value obj = Json::objectValue;
+  obj[MATCHER_KEY] = matcher;
+  auto& commands = obj[COMMANDS_KEY] = Json::arrayValue;
   for (auto& cmd : cmds)
     {
     if (cmd.find(matcher) == 0)
@@ -475,5 +456,5 @@ Json::Value cmServerCompleter::CodeCompleteCommand(cmState::Snapshot snp,
       commands.append(cmd);
       }
     }
-  return root;
+  return obj;
 }

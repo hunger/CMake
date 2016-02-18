@@ -30,5 +30,8 @@
 { "send": {"type":"fileInfo", "cookie":"ficall4", "target":"main", "path":"%SOURCEDIR%/buildsystem2/main.cpp"} },
 { "recv": {"cookie":"ficall4","inReplyTo":"fileInfo","result":{},"type":"reply"} },
 
+{ "send": {"type":"content", "cookie":"contcall"} },
+{ "error": {"message":"\"path\" may not be unset.", "cookie":"contcall", "type":"content"} },
+
 { "message": "Everything ok." }
 ]

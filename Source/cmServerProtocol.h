@@ -101,6 +101,7 @@ public:
 
 private:
   cmServerResponse ProcessInitialize(const cmServerRequest &request);
+  cmServerResponse ProcessGenerator(const cmServerRequest &request);
   cmServerResponse ProcessVersion(const cmServerRequest &request);
   cmServerResponse ProcessBuildSystem(const cmServerRequest &request);
   cmServerResponse ProcessTargetInfo(const cmServerRequest &request);

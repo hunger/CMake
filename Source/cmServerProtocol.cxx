@@ -23,62 +23,12 @@
 #include "cmServerParser.h"
 #include "cmCommand.h"
 #include "cmServerCompleter.h"
+#include "cmServerVocabulary.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 # include "cm_jsoncpp_value.h"
 # include "cm_jsoncpp_reader.h"
 #endif
-
-const char PATH_KEY[] = "path";
-const char PATH1_KEY[] = "path1";
-const char PATH2_KEY[] = "path2";
-const char LINE_KEY[] = "line";
-const char LINE1_KEY[] = "line1";
-const char LINE2_KEY[] = "line2";
-const char COLUMN_KEY[] = "column";
-const char BEGIN_KEY[] = "begin";
-const char END_KEY[] = "end";
-const char KEY_KEY[] = "key";
-const char VALUE_KEY[] = "value";
-const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
-const char BUILD_IMPORT_LIBRARY_KEY[] = "buildImportLibrary";
-const char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
-const char PROJECT_NAME_KEY[] = "project";
-const char TARGET_NAME_KEY[] = "target";
-const char TARGET_TYPE_KEY[] = "targetType";
-const char BACKTRACE_KEY[] = "backtrace";
-const char CONTENT_KEY[] = "content";
-const char CONFIGURATION_KEY[] = "configuration";
-const char CONFIGURATION_LIST_KEY[] = "configurations";
-const char TARGET_LIST_KEY[] = "targets";
-const char GLOBAL_TARGET_LIST_KEY[] = "globalTargets";
-const char LANGUAGE_KEY[] = "language";
-const char OBJECT_SOURCE_LIST_KEY[] = "objectSources";
-const char GENERATED_OBJECT_SOURCE_LIST_KEY[] = "generatedObjectSources";
-const char HEADER_SOURCE_LIST_KEY[] = "headerSources";
-const char GENERATED_HEADER_SOURCE_LIST_KEY[] = "generatedHeaderSources";
-const char COMPILE_DEFINITION_LIST_KEY[] = "compileDefinitions";
-const char COMPILE_FEATURES_LIST_KEY[] = "compileFeatures";
-const char COMPILE_OPTIONS_LIST_KEY[] = "compileOptions";
-const char INCLUDE_DIRECTORY_LIST_KEY[] = "includeDirectories";
-const char MATCHER_KEY[] = "matcher";
-const char RESULT_KEY[] = "result";
-const char CONTENT_RESULT_KEY[] = "contentResult";
-const char TOKENS_KEY[] = "tokens";
-const char UNREACHABLE_KEY[] = "unreachable";
-const char NO_CONTEXT_KEY[] = "noContext";
-const char ADDED_DEFINITIONS_LIST_KEY[] = "addedDefinitions";
-const char REMOVED_DEFINITIONS_LIST_KEY[] = "removedDefinitions";
-const char CONTEXT_ORIGIN_KEY[] = "contextOrigin";
-const char DEFINITION_MATCH_KEY[] = "definitionMatch";
-const char DEFINITION_ORIGIN_KEY[] = "definitionOrigin";
-const char CONTEXTUAL_HELP_KEY[] = "contextualHelp";
-const char CONTEXT_KEY[] = "context";
-const char HELPKEY_KEY[] = "helpKey";
-
-const char UNEXECUTED_VALUE[] = "unexecuted";
-const char NO_COMPLETION_VALUE[] = "noCompletions";
-const char NO_CONTEXT_VALUE[] = "noContext";
 
 static std::string INVALID_LINE_ERROR(const std::string &key)
 {
@@ -241,6 +191,10 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
     {
     return ProcessVersion(request);
     }
+  if (request.Type == "generators")
+    {
+    return ProcessGenerator(request);
+    }
   if (request.Type == "buildsystem")
     {
     return ProcessBuildSystem(request);
@@ -366,10 +320,26 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
   return request.Reply(obj);
 }
 
+cmServerResponse cmServerProtocol0_1::ProcessGenerator(const cmServerRequest &request)
+{
+  assert(this->CMakeInstance);
+  std::vector<cmDocumentationEntry> entries;
+  this->CMakeInstance->GetGeneratorDocumentation(entries);
+  Json::Value obj = Json::arrayValue;
+  for (const cmDocumentationEntry &e : entries)
+    {
+    Json::Value gen = Json::objectValue;
+    gen[GENERATOR_KEY] = e.Name;
+    gen[DESCRIPTION_KEY] = e.Brief;
+    obj.append(gen);
+    }
+  return request.Reply(obj);
+}
+
 cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
 {
-    Json::Value obj = std::string(CMake_VERSION);
-    return request.Reply(obj);
+  Json::Value obj = std::string(CMake_VERSION);
+  return request.Reply(obj);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(const cmServerRequest &request)
@@ -639,6 +609,10 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
   const DifferentialFileContent diff = cmServerDiff::GetDiff(request.Data);
   const std::string matcher = request.Data[MATCHER_KEY].asString();
 
+  if (filePath.empty())
+    {
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(PATH_KEY));
+    }
   if (fileLine <= 0)
     {
     return request.ReportError(INVALID_LINE_ERROR(LINE_KEY));
@@ -646,17 +620,13 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
 
   if (this->IsNotExecuted(filePath, fileLine))
     {
-    Json::Value obj = Json::objectValue;
-    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto res = this->GetSnapshotAndStartLine(filePath, fileLine, diff);
   if (res.second < 0)
     {
-    Json::Value obj = Json::objectValue;
-    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto desired =
@@ -664,9 +634,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContent(const cmServerRequest &requ
   cmState::Snapshot contentSnp = desired.first;
   if (!contentSnp.IsValid())
     {
-    Json::Value obj = Json::objectValue;
-    obj[CONTENT_RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   return request.Reply(GenerateContent(contentSnp, matcher));
@@ -712,7 +680,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
   const std::string filePath = request.Data[PATH_KEY].asString();
   const long fileLine = request.Data[LINE_KEY].asInt();
   const long fileColumn = request.Data[COLUMN_KEY].asInt();
-  const std::string fileContent = request.Data[CONTENT_KEY].asString();
+  const std::string fileContent = request.Data[CONTENTS_KEY].asString();
 
   if (fileLine <= 0)
     {
@@ -749,11 +717,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextualHelp(const cmServerReques
     if (listFile.Functions[funcIndex].Line > fileLine)
       {
       Json::Value obj = Json::objectValue;
-      Json::Value& contextualHelp =
-          obj[RESULT_KEY] = Json::objectValue;
-
-      contextualHelp[NO_CONTEXT_KEY] = true;
-
+      obj[NO_CONTEXT_KEY] = true;
       return request.Reply(obj);
       }
 
@@ -926,26 +890,19 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   if (this->IsNotExecuted(filePath1, fileLine1)
       || this->IsNotExecuted(filePath2, fileLine2))
     {
-    Json::Value obj = Json::objectValue;
-
-    obj[RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto res1 = GetSnapshotAndStartLine(filePath1, fileLine1, diffs.first);
   if (res1.second < 0)
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto res2 = GetSnapshotAndStartLine(filePath2, fileLine2, diffs.second);
   if (res2.second < 0)
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto desired1 =
@@ -953,9 +910,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   cmState::Snapshot contentSnp1 = desired1.first;
   if (!contentSnp1.IsValid())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   auto desired2 =
@@ -963,20 +918,16 @@ cmServerResponse cmServerProtocol0_1::ProcessContentDiff(const cmServerRequest &
   cmState::Snapshot contentSnp2 = desired2.first;
   if (!contentSnp2.IsValid())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = UNEXECUTED_VALUE;
-    return request.Reply(obj);
+    return request.Reply(UNEXECUTED_VALUE);
     }
 
   Json::Value obj = Json::objectValue;
 
-  Json::Value& content = obj[RESULT_KEY] = Json::objectValue;
-
   std::vector<std::string> keys1 = contentSnp1.ClosureKeys();
   std::vector<std::string> keys2 = contentSnp2.ClosureKeys();
 
-  auto& addedDefs = content[ADDED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
-  auto& removedDefs = content[REMOVED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
+  auto& addedDefs = obj[ADDED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
+  auto& removedDefs = obj[REMOVED_DEFINITIONS_LIST_KEY] = Json::arrayValue;
 
   for(auto key : keys2)
     {
@@ -1030,9 +981,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
   if (res.second < 0)
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_COMPLETION_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_COMPLETION_VALUE);
     }
 
   auto desired =
@@ -1040,9 +989,7 @@ cmServerResponse cmServerProtocol0_1::ProcessCodeComplete(const cmServerRequest 
   cmState::Snapshot completionSnp = desired.first;
   if (!completionSnp.IsValid())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_COMPLETION_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_COMPLETION_VALUE);
     }
 
   auto prParseStart = diff.EditorLines.begin() + res.second - 1;
@@ -1089,9 +1036,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
   auto res = GetSnapshotAndStartLine(filePath, fileLine, diff);
   if (res.second < 0)
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   auto desired =
@@ -1099,9 +1044,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
   cmState::Snapshot completionSnp = desired.first;
   if (!completionSnp.IsValid())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   auto prParseStart = diff.EditorLines.begin() + res.second - 1;
@@ -1128,16 +1071,12 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 
   if (!result.isMember(CONTEXT_ORIGIN_KEY))
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   if (!result[CONTEXT_ORIGIN_KEY].isMember(MATCHER_KEY))
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   auto varName = result[CONTEXT_ORIGIN_KEY][MATCHER_KEY].asString();
@@ -1146,9 +1085,7 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 
   if (snps.empty())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   cmState::Snapshot snp = snps.front();
@@ -1160,16 +1097,12 @@ cmServerResponse cmServerProtocol0_1::ProcessContextWriters(const cmServerReques
 
   if (it == this->Snapshots.end())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   if (it->second.empty())
     {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = NO_CONTEXT_VALUE;
-    return request.Reply(obj);
+    return request.Reply(NO_CONTEXT_VALUE);
     }
 
   ++it;
@@ -1355,14 +1288,11 @@ bool cmServerProtocol0_1::IsNotExecuted(std::string filePath, long fileLine)
 Json::Value cmServerProtocol0_1::GenerateContent(cmState::Snapshot snp, std::string matcher)
 {
   Json::Value obj = Json::objectValue;
-
-  Json::Value& content = obj[CONTENT_KEY] = Json::objectValue;
-
   std::vector<std::string> keys = snp.ClosureKeys();
   for (const auto& p: keys)
     {
     if (p.find(matcher) == 0)
-      content[p] = snp.GetDefinition(p);
+      obj[p] = snp.GetDefinition(p);
     }
 
   return obj;
