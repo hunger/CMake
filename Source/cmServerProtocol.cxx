@@ -29,8 +29,6 @@
 # include "cm_jsoncpp_reader.h"
 #endif
 
-const char TARGETINFO_TYPE[] = "targetInfo";
-
 const char PATH_KEY[] = "path";
 const char PATH1_KEY[] = "path1";
 const char PATH2_KEY[] = "path2";
@@ -247,7 +245,7 @@ const cmServerResponse cmServerProtocol0_1::process(const cmServerRequest &reque
     {
     return ProcessBuildSystem(request);
     }
-  if (request.Type == TARGETINFO_TYPE)
+  if (request.Type == "targetInfo")
     {
     return ProcessTargetInfo(request);
     }
@@ -370,9 +368,7 @@ cmServerResponse cmServerProtocol0_1::ProcessInitialize(const cmServerRequest &r
 
 cmServerResponse cmServerProtocol0_1::ProcessVersion(const cmServerRequest &request)
 {
-    Json::Value obj = Json::objectValue;
-    obj[RESULT_KEY] = CMake_VERSION;
-
+    Json::Value obj = std::string(CMake_VERSION);
     return request.Reply(obj);
 }
 
@@ -475,7 +471,6 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     }
 
   Json::Value obj = Json::objectValue;
-  Json::Value& root = obj[TARGETINFO_TYPE] = Json::objectValue;
 
   auto tgt =
       this->CMakeInstance->GetGlobalGenerator()->FindGeneratorTarget(tgtName);
@@ -485,16 +480,16 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     return request.ReportError("Failed to find target.");
     }
 
-  root[TARGET_NAME_KEY] = tgt->GetName();
+  obj[TARGET_NAME_KEY] = tgt->GetName();
 
   if (tgt->GetType() != cmState::GLOBAL_TARGET
       && tgt->GetType() != cmState::UTILITY
       && tgt->GetType() != cmState::OBJECT_LIBRARY)
     {
-    root[BUILD_DIRECTORY_KEY] = tgt->GetLocation(config);
+    obj[BUILD_DIRECTORY_KEY] = tgt->GetLocation(config);
     if (tgt->HasImportLibrary())
       {
-      root[BUILD_IMPORT_LIBRARY_KEY] = tgt->GetFullPath(config, true);
+      obj[BUILD_IMPORT_LIBRARY_KEY] = tgt->GetFullPath(config, true);
       }
     }
 
@@ -502,8 +497,8 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
   tgt->GetObjectSources(files, config);
 
-  Json::Value& object_sources = root[OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
-  Json::Value& generated_object_sources = root[GENERATED_OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& object_sources = obj[OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& generated_object_sources = obj[GENERATED_OBJECT_SOURCE_LIST_KEY] = Json::arrayValue;
   for (auto const& sf : files)
     {
     std::string filePath = sf->GetFullPath();
@@ -521,8 +516,8 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
 
   tgt->GetHeaderSources(files, config);
 
-  Json::Value& header_sources = root[HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
-  Json::Value& generated_header_sources = root[GENERATED_HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& header_sources = obj[HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
+  Json::Value& generated_header_sources = obj[GENERATED_HEADER_SOURCE_LIST_KEY] = Json::arrayValue;
   for (auto const& sf : files)
     {
     std::string filePath = sf->GetFullPath();
@@ -536,7 +531,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
       }
     }
 
-  Json::Value& target_defines = root[COMPILE_DEFINITION_LIST_KEY] = Json::arrayValue;
+  Json::Value& target_defines = obj[COMPILE_DEFINITION_LIST_KEY] = Json::arrayValue;
 
   std::string lang = language ? language : "C";
 
@@ -547,7 +542,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_defines.append(cdef);
     }
 
-  Json::Value& target_features = root[COMPILE_FEATURES_LIST_KEY] = Json::arrayValue;
+  Json::Value& target_features = obj[COMPILE_FEATURES_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> features;
   tgt->GetCompileFeatures(cdefs, config);
@@ -556,7 +551,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_features.append(feature);
     }
 
-  Json::Value& target_options = root[COMPILE_OPTIONS_LIST_KEY] = Json::arrayValue;
+  Json::Value& target_options = obj[COMPILE_OPTIONS_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> options;
   tgt->GetCompileOptions(cdefs, config, lang);
@@ -565,7 +560,7 @@ cmServerResponse cmServerProtocol0_1::ProcessTargetInfo(const cmServerRequest &r
     target_options.append(option);
     }
 
-  Json::Value& target_includes = root[INCLUDE_DIRECTORY_LIST_KEY] = Json::arrayValue;
+  Json::Value& target_includes = obj[INCLUDE_DIRECTORY_LIST_KEY] = Json::arrayValue;
 
   std::vector<std::string> dirs;
   tgt->GetLocalGenerator()->GetIncludeDirectories(dirs, tgt, lang, config);
@@ -587,6 +582,16 @@ cmServerResponse cmServerProtocol0_1::ProcessFileInfo(const cmServerRequest &req
   const std::string tgtName = request.Data[TARGET_NAME_KEY].asString();
   const std::string config = request.Data[CONFIGURATION_KEY].asString();
   const std::string file_path = request.Data[PATH_KEY].asString();
+
+  if (tgtName.empty())
+    {
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(TARGET_NAME_KEY));
+    }
+
+  if (file_path.empty())
+    {
+    return request.ReportError(KEY_IS_MANDATORY_ERROR(PATH_KEY));
+    }
 
   auto tgt =
       this->CMakeInstance->GetGlobalGenerator()->FindGeneratorTarget(tgtName);

@@ -309,13 +309,17 @@ void cmMetadataServer::WriteResponse(const cmServerResponse &response)
 {
   assert(response.IsComplete());
 
-  Json::Value obj = response.Data();
+  Json::Value obj = Json::objectValue;
   obj[COOKIE_KEY] = response.Cookie;
   obj[TYPE_KEY] = response.IsError() ? ERROR_TYPE : REPLY_TYPE;
   obj[REPLY_TO_KEY] = response.Type;
   if (response.IsError())
     {
     obj[ERROR_MESSAGE_KEY] = response.ErrorMessage();
+    }
+  else
+    {
+    obj["result"] = response.Data();
     }
 
   WriteJsonObject(obj);

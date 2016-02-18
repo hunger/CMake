@@ -54,7 +54,7 @@
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":1,"message":"configured"} },
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":2,"message":"computed"} },
 { "progress": {"type":"initialize","cookie":"TEST_INIT","current":3,"message":"done"} },
-{ "recv": {"type":"reply","inReplyTo":"initialize","cookie":"TEST_INIT","project":"buildsystem1","buildDirectory":"%BUILDDIR%/buildsystem1","sourceDirectory":"%SOURCEDIR%/buildsystem1"} },
+{ "recv": {"result":{"project":"buildsystem1","buildDirectory":"%BUILDDIR%/buildsystem1","sourceDirectory":"%SOURCEDIR%/buildsystem1"},"type":"reply","inReplyTo":"initialize","cookie":"TEST_INIT"} },
 
 { "message": "Initialized" },
 
@@ -74,7 +74,7 @@
 { "error": {"type":"targetInfo","message":"\"target\" may not be unset."} },
 
 { "send": {"type":"fileInfo"} },
-{ "error": {"type":"fileInfo","message":"Target not found."} },
+{ "error": {"type":"fileInfo","message":"\"target\" may not be unset."} },
 
 { "send": {"type":"content"} },
 { "error": {"type":"content","message":"\"line\" must be a positive integer."} },

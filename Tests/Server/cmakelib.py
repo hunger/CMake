@@ -125,5 +125,5 @@ def initialize(cmakeCommand, projectName, sourceDir, buildDir):
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 1, 'configured')
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 2, 'computed')
   waitForProgress(cmakeCommand, 'initialize', 'TEST_INIT', 3, 'done')
-  waitForMessage(cmakeCommand, {"buildDirectory":buildDir,"cookie":"TEST_INIT","inReplyTo":"initialize","project":projectName,"sourceDirectory":sourceDir,"type":"reply"})
+  waitForMessage(cmakeCommand, {"result": {"buildDirectory":buildDir,"project":projectName,"sourceDirectory":sourceDir},"cookie":"TEST_INIT","inReplyTo":"initialize","type":"reply"})
 

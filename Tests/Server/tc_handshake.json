@@ -46,7 +46,7 @@
 { "recv": {"cookie":"","errorMessage":"Protocol version not supported.","inReplyTo":"handshake","type":"error"} },
 
 { "send": {"cookie":"zimtstern","type": "handshake","protocolVersion":{"major":0}} },
-{ "recv": {"cookie":"zimtstern","inReplyTo":"handshake","type":"reply"} },
+{ "recv": {"cookie":"zimtstern","inReplyTo":"handshake","result":{}, "type":"reply"} },
 
 { "message": "Everything ok." }
 ]

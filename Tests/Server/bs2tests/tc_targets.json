@@ -10,7 +10,25 @@
 { "message": "Initialized" },
 
 { "send": {"type":"buildsystem", "cookie":"bscall"} },
-{ "recv": {"configurations":[],"globalTargets":["edit_cache","rebuild_cache"],"targets":[{"backtrace":[{"line":9,"path":"CMakeLists.txt"}],"target":"main","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":11,"path":"CMakeLists.txt"}],"target":"m_other","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":13,"path":"CMakeLists.txt"}],"target":"foo","project":"buildsystem2","targetType":"STATIC_LIBRARY"},{"backtrace":[{"line":5,"path":"subdir/CMakeLists.txt"}],"target":"ooo","project":"buildsystem2","targetType":"EXECUTABLE"}],"cookie":"bscall","inReplyTo":"buildsystem","type":"reply"} },
+{ "recv": {"result": {"configurations":[],"globalTargets":["edit_cache","rebuild_cache"],"targets":[{"backtrace":[{"line":9,"path":"CMakeLists.txt"}],"target":"main","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":11,"path":"CMakeLists.txt"}],"target":"m_other","project":"buildsystem2","targetType":"EXECUTABLE"},{"backtrace":[{"line":13,"path":"CMakeLists.txt"}],"target":"foo","project":"buildsystem2","targetType":"STATIC_LIBRARY"},{"backtrace":[{"line":5,"path":"subdir/CMakeLists.txt"}],"target":"ooo","project":"buildsystem2","targetType":"EXECUTABLE"}]},"cookie":"bscall","inReplyTo":"buildsystem","type":"reply"} },
+
+{ "send": {"type":"targetInfo", "cookie":"ticall", "target": "edit_cache"} },
+{ "recv": {"cookie":"ticall","inReplyTo":"targetInfo","result":{"compileDefinitions":[],"compileFeatures":[],"compileOptions":[],"generatedHeaderSources":[],"generatedObjectSources":[],"headerSources":[],"includeDirectories":[],"objectSources":[],"target":"edit_cache"},"type":"reply"} },
+
+{ "send": {"type":"targetInfo", "cookie":"ticall2", "target": "main"} },
+{ "recv": {"cookie":"ticall2","inReplyTo":"targetInfo","result":{"buildDirectory":"%BUILDDIR%/buildsystem2/main","compileDefinitions":[],"compileFeatures":[],"compileOptions":[],"generatedHeaderSources":[],"generatedObjectSources":[],"headerSources":[],"includeDirectories":[],"objectSources":["%SOURCEDIR%/buildsystem2/main.cpp"],"target":"main"},"type":"reply"} },
+
+{ "send": {"type":"fileInfo", "cookie":"ficall"} },
+{ "error": {"message":"\"target\" may not be unset.", "cookie":"ficall", "type":"fileInfo"} },
+
+{ "send": {"type":"fileInfo", "cookie":"ficall2", "target":"main"} },
+{ "error": {"message":"\"path\" may not be unset.", "cookie":"ficall2", "type":"fileInfo"} },
+
+{ "send": {"type":"fileInfo", "cookie":"ficall3", "target":"mainXXX", "path":"%SOURCEDIR%/buildsystem2/main.cpp"} },
+{ "error": {"message":"Target not found.", "cookie":"ficall3", "type":"fileInfo"} },
+
+{ "send": {"type":"fileInfo", "cookie":"ficall4", "target":"main", "path":"%SOURCEDIR%/buildsystem2/main.cpp"} },
+{ "recv": {"cookie":"ficall4","inReplyTo":"fileInfo","result":{},"type":"reply"} },
 
 { "message": "Everything ok." }
 ]
