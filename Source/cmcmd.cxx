@@ -18,6 +18,10 @@
 #include "cmQtAutoGenerators.h"
 #include "cmVersion.h"
 
+#if defined(HAVE_DAEMON_MODE) && HAVE_DAEMON_MODE
+#include "cmServer.h"
+#endif
+
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cmDependsFortran.h" // For -E cmake_copy_f90_mod callback.
 #endif
@@ -905,6 +909,18 @@ int cmcmd::ExecuteCMakeCommand(std::vector<std::string>& args)
 #endif
       }
       return 0;
+    } else if (args[1] == "daemon") {
+      if (args.size() > 2) {
+        return 1;
+      }
+#if defined(HAVE_DAEMON_MODE) && HAVE_DAEMON_MODE
+      cmServer server;
+      server.Serve();
+      return 0;
+#else
+      cmSystemTools::Error("CMake was not built with daemon mode enabled");
+      return 1;
+#endif
     }
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
