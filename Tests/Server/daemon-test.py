@@ -74,7 +74,8 @@ for obj in testData:
         if 'minor' in data: minor = data['minor']
         cmakelib.handshake(proc, major, minor)
     elif 'validateGlobalSettings' in obj:
-        cmakelib.validateGlobalSettings(proc, cmakeCommand)
+        data = obj['validateGlobalSettings']
+        cmakelib.validateGlobalSettings(proc, cmakeCommand, data)
     elif 'message' in obj:
         print("MESSAGE:", obj["message"])
     else:
