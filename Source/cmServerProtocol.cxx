@@ -12,11 +12,11 @@
 
 #include "cmServerProtocol.h"
 
-#include "cmake.h"
 #include "cmExternalMakefileProjectGenerator.h"
 #include "cmGlobalGenerator.h"
 #include "cmServer.h"
 #include "cmVersionMacros.h"
+#include "cmake.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cm_jsoncpp_reader.h"
@@ -27,6 +27,7 @@ namespace {
 // Vocabulary:
 
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
+char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
 char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
@@ -162,6 +163,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
   assert(m_State >= ACTIVE);
   if (request.Type == GLOBAL_SETTINGS_TYPE)
     return ProcessGlobalSettings(request);
+  if (request.Type == SET_GLOBAL_SETTINGS_TYPE)
+    return ProcessSetGlobalSettings(request);
 
   return request.ReportError("Unknown command!");
 }
@@ -215,4 +218,80 @@ cmServerResponse cmServerProtocol0_1::ProcessGlobalSettings(
   obj[BUILD_DIRECTORY_KEY] = cm->GetHomeOutputDirectory();
 
   return request.Reply(obj);
+}
+
+static bool setString(const cmServerRequest& request, const std::string& key,
+                      std::function<bool(std::string)> setter)
+{
+  if (request.Data[key].isNull())
+    return true;
+  return setter(request.Data[key].asString());
+}
+
+static void setBool(const cmServerRequest& request, const std::string& key,
+                    std::function<void(bool)> setter)
+{
+  if (request.Data[key].isNull())
+    return;
+  setter(request.Data[key].asBool());
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessSetGlobalSettings(
+  const cmServerRequest& request)
+{
+  const std::vector<std::string> stringValues = { BUILD_DIRECTORY_KEY,
+                                                  CURRENT_GENERATOR_KEY,
+                                                  SOURCE_DIRECTORY_KEY };
+  const std::vector<std::string> boolValues = {
+    DEBUG_OUTPUT_KEY,       TRACE_KEY,       TRACE_EXPAND_KEY,
+    WARN_UNINITIALIZED_KEY, WARN_UNUSED_KEY, WARN_UNUSED_CLI_KEY,
+    CHECK_SYSTEM_VARS_KEY
+  };
+
+  for (auto i : stringValues) {
+    if (!request.Data[i].isNull() && !request.Data[i].isString()) {
+      return request.ReportError("\"" + i + "\" must be unset or a string.");
+    }
+  }
+  for (auto i : boolValues) {
+    if (!request.Data[i].isNull() && !request.Data[i].isBool()) {
+      return request.ReportError("\"" + i +
+                                 "\" must be unset or a bool value.");
+    }
+  }
+
+  cmake* cm = CMakeInstance();
+  if (!setString(request, CURRENT_GENERATOR_KEY, [cm](const std::string& v) {
+        cmGlobalGenerator* generator = cm->CreateGlobalGenerator(v);
+        if (!generator) {
+          return false;
+        }
+        cm->SetGlobalGenerator(generator);
+        return true;
+      })) {
+    return request.ReportError("Requested generator was not found.");
+  }
+
+  setString(request, SOURCE_DIRECTORY_KEY, [cm](const std::string& v) {
+    cm->SetHomeDirectory(v);
+    return true;
+  });
+  setString(request, BUILD_DIRECTORY_KEY, [cm](const std::string& v) {
+    cm->SetHomeOutputDirectory(v);
+    return true;
+  });
+
+  setBool(request, DEBUG_OUTPUT_KEY,
+          [cm](bool e) { cm->SetDebugOutputOn(e); });
+  setBool(request, TRACE_KEY, [cm](bool e) { cm->SetTrace(e); });
+  setBool(request, TRACE_EXPAND_KEY, [cm](bool e) { cm->SetTraceExpand(e); });
+  setBool(request, WARN_UNINITIALIZED_KEY,
+          [cm](bool e) { cm->SetWarnUninitialized(e); });
+  setBool(request, WARN_UNUSED_KEY, [cm](bool e) { cm->SetWarnUnused(e); });
+  setBool(request, WARN_UNUSED_CLI_KEY,
+          [cm](bool e) { cm->SetWarnUnusedCli(e); });
+  setBool(request, CHECK_SYSTEM_VARS_KEY,
+          [cm](bool e) { cm->SetCheckSystemVars(e); });
+
+  return request.Reply(Json::Value());
 }
