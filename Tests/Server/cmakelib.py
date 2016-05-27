@@ -120,7 +120,7 @@ def handshake(cmakeCommand, major, minor):
   writePayload(cmakeCommand, { 'type': 'handshake', 'protocolVersion': version, 'cookie': 'TEST_HANDSHAKE' })
   waitForReply(cmakeCommand, 'handshake', 'TEST_HANDSHAKE')
 
-def validateGlobalSettings(cmakeCommand, cmakeCommandPath):
+def validateGlobalSettings(cmakeCommand, cmakeCommandPath, data):
   packet = waitForReply(cmakeCommand, 'globalSettings', '')
 
   # validate version:
@@ -158,3 +158,12 @@ def validateGlobalSettings(cmakeCommand, cmakeCommandPath):
 
   if (generators != cmakeGenerators):
     sys.exit(1)
+
+  gen = packet['currentGenerator']
+  if (gen != '' and not (gen in generators)):
+    sys.exit(1)
+
+  for i in data:
+    print("Validating", i)
+    if (packet[i] != data[i]):
+      sys.exit(1)

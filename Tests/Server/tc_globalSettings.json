@@ -3,8 +3,209 @@
 
 { "handshake": {"major": 1} },
 
-{ "send": {"type": "globalSettings"} },
-{ "validateGlobalSettings": {} },
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "message": "Change settings:" },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": true, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "buildDirectory": "/tmp/build" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "/tmp/build", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "buildDirectory": "" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "debugOutput": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": true, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "debugOutput": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "warnUninitialized": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": true, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "warnUninitialized": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "traceExpand": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": true, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "traceExpand": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "trace": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": true, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "trace": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "warnUnusedCli": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": false, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnusedCli": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "sourceDirectory": "/tmp/source" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "/tmp/source", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "sourceDirectory": "" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "checkSystemVars": true } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": true, "currentGenerator": "" } },
+
+{ "send": { "type": "setGlobalSettings", "checkSystemVars": false } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "currentGenerator": "Unix Makefiles" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "Unix Makefiles" } },
+
+{ "send": { "type": "setGlobalSettings", "currentGenerator": "Ninja" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "Ninja" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "currentGenerator": "CodeBlocks - Ninja" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "CodeBlocks - Ninja" } },
+
+
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "buildDirectory": "/tmp/build", "debugOutput": true, "warnUninitialized": true, "traceExpand": true, "trace": true, "warnUnusedCli": false, "sourceDirectory": "/tmp/source", "checkSystemVars": true, "currentGenerator": "Unix Makefiles" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": true, "buildDirectory": "/tmp/build", "debugOutput": true, "warnUninitialized": true, "traceExpand": true, "trace": true, "warnUnusedCli": false, "sourceDirectory": "/tmp/source", "checkSystemVars": true, "currentGenerator": "Unix Makefiles" } },
+
+
+
+{ "message": "Error paths:" },
+
+{ "send": { "type": "setGlobalSettings", "debugOutput": true, "warnUnused": 1 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"warnUnused\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": 1 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"debugOutput\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUninitialized": 1, "warnUnused": true, "debugOutput": true } },
+{ "error": { "type": "setGlobalSettings", "message": "\"warnUninitialized\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "traceExpand": 1 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"traceExpand\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "debugOutput": true, "trace": 1, "warnUnused": true } },
+{ "error": { "type": "setGlobalSettings", "message": "\"trace\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "warnUnusedCli": 1.0 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"warnUnusedCli\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "checkSystemVars": "some string" } },
+{ "error": { "type": "setGlobalSettings", "message": "\"checkSystemVars\" must be unset or a bool value." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "buildDirectory": 1 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"buildDirectory\" must be unset or a string." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "sourceDirectory": true } },
+{ "error": { "type": "setGlobalSettings", "message": "\"sourceDirectory\" must be unset or a string." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "currentGenerator": 1.0 } },
+{ "error": { "type": "setGlobalSettings", "message": "\"currentGenerator\" must be unset or a string." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "currentGenerator": "" } },
+{ "error": { "type": "setGlobalSettings", "message": "Requested generator was not found." } },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "debugOutput": true, "currentGenerator": "XXXXX" } },
+{ "error": { "type": "setGlobalSettings", "message": "Requested generator was not found." } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": true, "buildDirectory": "/tmp/build", "debugOutput": true, "warnUninitialized": true, "traceExpand": true, "trace": true, "warnUnusedCli": false, "sourceDirectory": "/tmp/source", "checkSystemVars": true, "currentGenerator": "Unix Makefiles" } },
 
 { "message": "Everything ok." }
 ]

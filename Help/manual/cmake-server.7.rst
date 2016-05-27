@@ -204,3 +204,22 @@ which will result in a response type "reply"::
    "version":{"major":3,"patchLevel":20160601,"minor":5,"string":"3.5.20160601"},
    "sourceDirectory":"","trace":false,"cookie":"","type":"reply"}
   ]== CMake MetaMagic ==]
+
+
+Type "setGlobalSettings"
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+This request can be sent to change the global settings attributes. Unknown or read-only
+attributes are going to be ignored. All other settings will be changed.
+
+The server will respond with an empty reply message or an error.
+
+Example::
+  [== CMake MetaMagic ==[
+  {"type":"setGlobalSettings","debugOutput":true}
+  ]== CMake MetaMagic ==]
+
+CMake will reply to this with::
+  [== CMake MetaMagic ==[
+  {"inReplyTo":"setGlobalSettings","type":"reply"}
+  ]== CMake MetaMagic ==]
