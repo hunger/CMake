@@ -165,3 +165,32 @@ which will result in a response type "reply"::
   ]== CMake MetaMagic ==]
 
 indicating that the daemon is ready for action.
+
+
+Type "globalSettings"
+^^^^^^^^^^^^^^^^^^^^^
+
+This request can be sent after the initial handshake. It will return a
+JSON structure with information on cmake state.
+
+Example::
+  [== CMake MetaMagic ==[
+  {"type":"globalSettings"}
+  ]== CMake MetaMagic ==]
+
+which will result in a response type "reply"::
+  [== CMake MetaMagic ==[
+  {"inReplyTo":"globalSettings",
+   "debugOutput":false,"currentGenerator":"","warnUnused":false,"warnUnusedCli":true,
+   "checkSystemVars":false,"buildDirectory":"","warnUninitialized":false,
+   "traceExpand":false,"generators":
+   ["Unix Makefiles","Ninja","Watcom WMake","CodeBlocks - Ninja",
+    "CodeBlocks - Unix Makefiles","CodeLite - Ninja",
+    "CodeLite - Unix Makefiles","Eclipse CDT4 - Ninja",
+    "Eclipse CDT4 - Unix Makefiles","KDevelop3",
+    "KDevelop3 - Unix Makefiles","Kate - Ninja",
+    "Kate - Unix Makefiles","Sublime Text 2 - Ninja",
+    "Sublime Text 2 - Unix Makefiles"],
+   "version":{"major":3,"patchLevel":20160601,"minor":5,"string":"3.5.20160601"},
+   "sourceDirectory":"","trace":false,"cookie":"","type":"reply"}
+  ]== CMake MetaMagic ==]

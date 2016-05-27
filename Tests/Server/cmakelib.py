@@ -100,6 +100,7 @@ def waitForReply(cmakeCommand, originalType, cookie):
   packet = waitForRawMessage(cmakeCommand)
   if packet['cookie'] != cookie or packet['type'] != 'reply' or packet['inReplyTo'] != originalType:
     sys.exit(1)
+  return packet
 
 def waitForError(cmakeCommand, originalType, cookie, message):
   packet = waitForRawMessage(cmakeCommand)
@@ -118,3 +119,42 @@ def handshake(cmakeCommand, major, minor):
 
   writePayload(cmakeCommand, { 'type': 'handshake', 'protocolVersion': version, 'cookie': 'TEST_HANDSHAKE' })
   waitForReply(cmakeCommand, 'handshake', 'TEST_HANDSHAKE')
+
+def validateGlobalSettings(cmakeCommand, cmakeCommandPath):
+  packet = waitForReply(cmakeCommand, 'globalSettings', '')
+
+  # validate version:
+  cmakeoutput = subprocess.check_output([ cmakeCommandPath, "--version" ], universal_newlines=True)
+  cmakeVersion = cmakeoutput.splitlines()[0][14:]
+
+  version = packet['version']
+  versionString = version['string']
+  vs = str(version['major']) + '.' + str(version['minor']) + '.' + str(version['patchLevel'])
+  if (versionString != vs and not versionString.startswith(vs + '-')):
+    sys.exit(1)
+  if (versionString != cmakeVersion):
+    sys.exit(1)
+
+  # validate generators:
+  generators = packet['generators']
+
+  cmakeoutput = subprocess.check_output([ cmakeCommandPath, "--help" ], universal_newlines=True)
+  index = cmakeoutput.index('\nGenerators\n\n')
+  cmakeGenerators = []
+  for line in cmakeoutput[index + 12:].splitlines():
+    if not line.startswith('  '):
+      continue
+    equalPos = line.find('=')
+    tmp = ''
+    if (equalPos > 0):
+      tmp = line[2:equalPos].strip()
+    else:
+      tmp = line.strip()
+    if len(tmp) > 0:
+      cmakeGenerators.append(tmp)
+
+  generators.sort()
+  cmakeGenerators.sort()
+
+  if (generators != cmakeGenerators):
+    sys.exit(1)

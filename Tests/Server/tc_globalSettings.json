@@ -1,0 +1,10 @@
+[
+{ "message": "Testing globalSettings" },
+
+{ "handshake": {"major": 0} },
+
+{ "send": {"type": "globalSettings"} },
+{ "validateGlobalSettings": {} },
+
+{ "message": "Everything ok." }
+]
