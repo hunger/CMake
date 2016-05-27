@@ -12,8 +12,7 @@
 
 #pragma once
 
-// #include "cmState.h"
-#include "cmListFileCache.h"
+#include "cmake.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cm_jsoncpp_writer.h"
@@ -105,6 +104,8 @@ public:
 
 private:
   void DoActivate() override;
+  // Handle requests:
+  cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
 
   enum State
   {
