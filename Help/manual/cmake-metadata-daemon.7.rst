@@ -167,6 +167,25 @@ which will result in a response type "reply"::
 indicating that the daemon is ready for action.
 
 
+Type "reset"
+^^^^^^^^^^^^
+
+The reset command will reset the cmake daemon to the state it had right
+after the handshake message was sent.
+
+The server will respond with an empty reply.
+
+Example::
+  [== Make MetaMagic ==[
+  {"type":"reset"}
+  ]== CMake MetaMagic ==]
+
+which will result in a response type "reply"::
+  [== CMake MetaMagic ==[
+  {"inReplyTo":"reset","type":"reply"}
+  ]== CMake MetaMagic ==]
+
+
 Type "globalSettings"
 ^^^^^^^^^^^^^^^^^^^^^
 

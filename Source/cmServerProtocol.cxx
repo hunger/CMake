@@ -27,6 +27,7 @@ namespace {
 // Vocabulary:
 
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
+char RESET_TYPE[] = "reset";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
@@ -134,7 +135,7 @@ cmServerProtocol::~cmServerProtocol()
 
 void cmServerProtocol::Activate()
 {
-  m_CMakeInstance = std::make_unique<cmake>();
+  reset();
   DoActivate();
 }
 
@@ -143,7 +144,18 @@ cmake* cmServerProtocol::CMakeInstance() const
   return m_CMakeInstance.get();
 }
 
+void cmServerProtocol::reset()
+{
+  m_CMakeInstance = std::make_unique<cmake>();
+  cmSystemTools::ResetErrorOccuredFlag();
+  DoReset();
+}
+
 void cmServerProtocol::DoActivate()
+{
+}
+
+void cmServerProtocol::DoReset()
 {
 }
 
@@ -157,6 +169,11 @@ void cmServerProtocol0_1::DoActivate()
   m_State = ACTIVE;
 }
 
+void cmServerProtocol0_1::DoReset()
+{
+  m_State = ACTIVE;
+}
+
 const cmServerResponse cmServerProtocol0_1::Process(
   const cmServerRequest& request)
 {
@@ -165,6 +182,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
     return ProcessGlobalSettings(request);
   if (request.Type == SET_GLOBAL_SETTINGS_TYPE)
     return ProcessSetGlobalSettings(request);
+  if (request.Type == RESET_TYPE)
+    return ProcessReset(request);
 
   return request.ReportError("Unknown command!");
 }
@@ -293,5 +312,12 @@ cmServerResponse cmServerProtocol0_1::ProcessSetGlobalSettings(
   setBool(request, CHECK_SYSTEM_VARS_KEY,
           [cm](bool e) { cm->SetCheckSystemVars(e); });
 
+  return request.Reply(Json::Value());
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessReset(
+  const cmServerRequest& request)
+{
+  reset();
   return request.Reply(Json::Value());
 }

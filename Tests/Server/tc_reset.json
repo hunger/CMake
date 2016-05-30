@@ -1,0 +1,32 @@
+[
+{ "message": "Testing reset" },
+
+{ "handshake": {"major": 0} },
+
+{ "send": { "type": "globalSettings" } },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+
+
+{ "message": "Change settings:" },
+
+{ "send": { "type": "setGlobalSettings", "warnUnused": true, "buildDirectory": "/tmp/build", "debugOutput": true, "warnUninitialized": true, "traceExpand": true, "trace": true, "warnUnusedCli": false, "sourceDirectory": "/tmp/source", "checkSystemVars": true, "currentGenerator": "Unix Makefiles" } },
+{ "reply": { "type": "setGlobalSettings" } },
+
+{ "send": { "type": "globalSettings"} },
+{ "validateGlobalSettings": { "warnUnused": true, "buildDirectory": "/tmp/build", "debugOutput": true, "warnUninitialized": true, "traceExpand": true, "trace": true, "warnUnusedCli": false, "sourceDirectory": "/tmp/source", "checkSystemVars": true, "currentGenerator": "Unix Makefiles" } },
+
+
+
+{ "message": "Reset:" },
+
+{ "send": { "type": "reset" } },
+{ "reply": { "type": "reset" } },
+
+
+
+{ "send": { "type": "globalSettings" } },
+{ "validateGlobalSettings": { "warnUnused": false, "buildDirectory": "", "debugOutput": false, "warnUninitialized": false, "traceExpand": false, "trace": false, "warnUnusedCli": true, "sourceDirectory": "", "checkSystemVars": false, "currentGenerator": "" } },
+
+{ "message": "Everything ok." }
+]
