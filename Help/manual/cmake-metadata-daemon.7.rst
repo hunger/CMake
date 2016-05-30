@@ -267,3 +267,21 @@ CMake will reply like this (after reporting progress for some time)::
   [== CMake MetaMagic ==[
   {"cookie":"","inReplyTo":"configure","type":"reply"}
   ]== CMake MetaMagic ==]
+
+
+Type "generate"
+^^^^^^^^^^^^^^^
+
+This requist will generate build system files in the build directory and
+is only available after a project was successfully "configure"d.
+
+Example::
+  [== CMake MetaMagic ==[
+  {"type":"generate"}
+  ]== CMake MetaMagic ==]
+
+CMake will reply (after reporting progress information)::
+  [== CMake MetaMagic ==[
+  {"cookie":"","inReplyTo":"generate","type":"reply"}
+  ]== CMake MetaMagic ==]
+

@@ -27,6 +27,7 @@ namespace {
 // Vocabulary:
 
 char CONFIGURE_TYPE[] = "configure";
+char GENERATE_TYPE[] = "generate";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 char RESET_TYPE[] = "reset";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
@@ -192,6 +193,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
     return ProcessReset(request);
   if (request.Type == CONFIGURE_TYPE)
     return ProcessConfigure(request);
+  if (request.Type == GENERATE_TYPE)
+    return ProcessGenerate(request);
 
   return request.ReportError("Unknown command!");
 }
@@ -335,6 +338,27 @@ cmServerResponse cmServerProtocol0_1::ProcessConfigure(
     return request.ReportError("Configuration failed.");
   } else {
     m_State = CONFIGURED;
+    return request.Reply(Json::Value());
+  }
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessGenerate(
+  const cmServerRequest& request)
+{
+  if (m_State > CONFIGURED) {
+    return request.ReportError("This build system was already generated.");
+  }
+  if (m_State < CONFIGURED) {
+    return request.ReportError("This project was not configured yet.");
+  }
+
+  cmake* cm = CMakeInstance();
+  int ret = cm->Generate();
+
+  if (ret < 0) {
+    return request.ReportError("Failed to generate build system.");
+  } else {
+    m_State = GENERATED;
     return request.Reply(Json::Value());
   }
 }
