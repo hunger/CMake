@@ -58,9 +58,6 @@ private:
 class cmServerRequest
 {
 public:
-  void ReportProgress(int min, int current, int max,
-                      const std::string& message) const;
-
   cmServerResponse Reply(const Json::Value& data) const;
   cmServerResponse ReportError(const std::string& message) const;
 
@@ -71,6 +68,9 @@ public:
 private:
   cmServerRequest(cmServer* server, const std::string& t, const std::string& c,
                   const Json::Value& d);
+
+  void ReportProgress(int min, int current, int max,
+                      const std::string& message) const;
 
   cmServer* m_Server;
 
@@ -98,6 +98,8 @@ protected:
 
 private:
   std::unique_ptr<cmake> m_CMakeInstance;
+
+  friend class cmServer;
 };
 
 class cmServerProtocol0_1 : public cmServerProtocol
