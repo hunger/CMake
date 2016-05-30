@@ -90,8 +90,11 @@ public:
 
 protected:
   cmake* CMakeInstance() const;
+  void reset();
+
   // Implement protocol specific activation tasks here. Called from Activate().
   virtual void DoActivate();
+  virtual void DoReset();
 
 private:
   std::unique_ptr<cmake> m_CMakeInstance;
@@ -107,9 +110,11 @@ public:
 
 private:
   void DoActivate() override;
+  void DoReset() override;
   // Handle requests:
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
   cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
+  cmServerResponse ProcessReset(const cmServerRequest& request);
 
   enum State
   {

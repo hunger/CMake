@@ -18,5 +18,6 @@ endmacro()
 
 do_test("test_handshake" "tc_handshake.json")
 do_test("test_globalSettings" "tc_globalSettings.json")
+do_test("test_reset" "tc_reset.json")
 
 add_executable(Server empty.cpp)
