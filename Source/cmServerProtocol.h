@@ -110,15 +110,18 @@ public:
 private:
   void DoActivate() override;
   void DoReset() override;
+
   // Handle requests:
+  cmServerResponse ProcessConfigure(const cmServerRequest& request);
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
-  cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
   cmServerResponse ProcessReset(const cmServerRequest& request);
+  cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
 
   enum State
   {
     INACTIVE,
-    ACTIVE
+    ACTIVE,
+    CONFIGURED
   };
   State m_State = INACTIVE;
 };
