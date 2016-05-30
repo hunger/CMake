@@ -242,3 +242,28 @@ CMake will reply to this with::
   [== CMake MetaMagic ==[
   {"inReplyTo":"setGlobalSettings","type":"reply"}
   ]== CMake MetaMagic ==]
+
+
+Type "configure"
+^^^^^^^^^^^^^^^^
+
+This request will configure a project for build.
+
+To configure a build directory already containing cmake files, it is enough to
+set "buildDirectory" via "setGlobalSettings". To create a fresh build directory
+you also need to set "currentGenerator" and "sourceDirectory" via "setGlobalSettings"
+in addition to "buildDirectory".
+
+You may a list of strings to "configure" via the "cacheArguments" key. These
+strings will be interpreted similar to command line arguments related to
+cache handling that are passed to the cmake command line client.
+
+Example::
+  [== CMake MetaMagic ==[
+  {"type":"configure", "cacheArguments":["-Dsomething=else"]}
+  ]== CMake MetaMagic ==]
+
+CMake will reply like this (after reporting progress for some time)::
+  [== CMake MetaMagic ==[
+  {"cookie":"","inReplyTo":"configure","type":"reply"}
+  ]== CMake MetaMagic ==]

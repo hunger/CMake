@@ -53,7 +53,7 @@ private:
   PayLoad mPayload = UNKNOWN;
   std::string m_ErrorMessage;
   Json::Value m_Data;
-  const void *m_DebugInfo;
+  const void* m_DebugInfo;
 };
 
 class cmServerRequest
@@ -116,15 +116,18 @@ public:
 private:
   void DoActivate() override;
   void DoReset() override;
+
   // Handle requests:
+  cmServerResponse ProcessConfigure(const cmServerRequest& request);
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
-  cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
   cmServerResponse ProcessReset(const cmServerRequest& request);
+  cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
 
   enum State
   {
     INACTIVE,
-    ACTIVE
+    ACTIVE,
+    CONFIGURED
   };
   State m_State = INACTIVE;
 };

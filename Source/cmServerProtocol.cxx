@@ -26,11 +26,13 @@
 namespace {
 // Vocabulary:
 
+char CONFIGURE_TYPE[] = "configure";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 char RESET_TYPE[] = "reset";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
 char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
 char COOKIE_KEY[] = "cookie";
 char CURRENT_GENERATOR_KEY[] = "currentGenerator";
@@ -188,6 +190,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
     return ProcessSetGlobalSettings(request);
   if (request.Type == RESET_TYPE)
     return ProcessReset(request);
+  if (request.Type == CONFIGURE_TYPE)
+    return ProcessConfigure(request);
 
   return request.ReportError("Unknown command!");
 }
@@ -246,6 +250,93 @@ cmServerResponse cmServerProtocol0_1::ProcessGlobalSettings(
   obj[BUILD_DIRECTORY_KEY] = cm->GetHomeOutputDirectory();
 
   return request.Reply(obj);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessConfigure(
+  const cmServerRequest& request)
+{
+  if (m_State != ACTIVE) {
+    return request.ReportError("This instance was already configured.");
+  }
+
+  // Make sure the types of cacheArguments matches (if given):
+  std::vector<std::string> cacheArgs;
+  bool cacheArgumentsError = false;
+  const Json::Value passedArgs = request.Data[CACHE_ARGUMENTS_KEY];
+  if (!passedArgs.isNull()) {
+    if (passedArgs.isString()) {
+      cacheArgs.push_back(passedArgs.asString());
+    } else if (passedArgs.isArray()) {
+      for (auto i = passedArgs.begin(); i != passedArgs.end(); ++i) {
+        if (!i->isString()) {
+          cacheArgumentsError = true;
+          break;
+        }
+        cacheArgs.push_back(i->asString());
+      }
+    } else {
+      cacheArgumentsError = true;
+    }
+  }
+  if (cacheArgumentsError) {
+    request.ReportError(
+      "cacheArguments must be unset, a string or an array of strings.");
+  }
+
+  cmake* cm = CMakeInstance();
+  std::string sourceDir = cm->GetHomeDirectory();
+  const std::string buildDir = cm->GetHomeOutputDirectory();
+
+  if (buildDir.empty()) {
+    return request.ReportError(
+      "No build directory set via setGlobalSettings.");
+  }
+
+  if (cm->LoadCache(buildDir)) {
+    // build directory has been set up before
+    const char* cachedSourceDir =
+      cm->GetState()->GetInitializedCacheValue("CMAKE_HOME_DIRECTORY");
+    if (!cachedSourceDir) {
+      return request.ReportError("No CMAKE_HOME_DIRECTORY found in cache.");
+    }
+    if (sourceDir.empty()) {
+      sourceDir = std::string(cachedSourceDir);
+      cm->SetHomeDirectory(sourceDir);
+    }
+
+    const char* cachedGenerator =
+      cm->GetState()->GetInitializedCacheValue("CMAKE_GENERATOR");
+    if (cachedGenerator) {
+      cmGlobalGenerator* gen = cm->GetGlobalGenerator();
+      if (gen && gen->GetName() != cachedGenerator) {
+        return request.ReportError("Configured generator does not match with "
+                                   "CMAKE_GENERATOR found in cache.");
+      }
+    }
+  } else {
+    // build directory has not been set up before
+    if (sourceDir.empty()) {
+      return request.ReportError("No sourceDirectory set via "
+                                 "setGlobalSettings and no cache found in "
+                                 "buildDirectory.");
+    }
+  }
+
+  if (cm->AddCMakePaths() != 1) {
+    return request.ReportError("Failed to set CMake paths.");
+  }
+
+  if (!cm->SetCacheArgs(cacheArgs)) {
+    return request.ReportError("cacheArguments could not be set.");
+  }
+
+  int ret = cm->Configure();
+  if (ret < 0) {
+    return request.ReportError("Configuration failed.");
+  } else {
+    m_State = CONFIGURED;
+    return request.Reply(Json::Value());
+  }
 }
 
 static bool setString(const cmServerRequest& request, const std::string& key,
