@@ -113,6 +113,7 @@ private:
 
   // Handle requests:
   cmServerResponse ProcessConfigure(const cmServerRequest& request);
+  cmServerResponse ProcessGenerate(const cmServerRequest& request);
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
   cmServerResponse ProcessReset(const cmServerRequest& request);
   cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
@@ -121,7 +122,8 @@ private:
   {
     INACTIVE,
     ACTIVE,
-    CONFIGURED
+    CONFIGURED,
+    GENERATED
   };
   State m_State = INACTIVE;
 };
