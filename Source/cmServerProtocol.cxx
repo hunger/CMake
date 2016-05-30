@@ -26,6 +26,7 @@
 namespace {
 // Vocabulary:
 
+char COMPUTE_TYPE[] = "compute";
 char CONFIGURE_TYPE[] = "configure";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
@@ -168,6 +169,8 @@ const cmServerResponse cmServerProtocol1_0::Process(
 {
   assert(this->m_State >= ACTIVE);
 
+  if (request.Type == COMPUTE_TYPE)
+    return this->ProcessCompute(request);
   if (request.Type == CONFIGURE_TYPE)
     return this->ProcessConfigure(request);
   if (request.Type == GLOBAL_SETTINGS_TYPE)
@@ -181,6 +184,27 @@ const cmServerResponse cmServerProtocol1_0::Process(
 bool cmServerProtocol1_0::IsExperimental() const
 {
   return true;
+}
+
+cmServerResponse cmServerProtocol1_0::ProcessCompute(
+  const cmServerRequest& request)
+{
+  if (this->m_State > CONFIGURED) {
+    return request.ReportError("This build system was already generated.");
+  }
+  if (this->m_State < CONFIGURED) {
+    return request.ReportError("This project was not configured yet.");
+  }
+
+  cmake* cm = this->CMakeInstance();
+  int ret = cm->Generate();
+
+  if (ret < 0) {
+    return request.ReportError("Failed to compute build system.");
+  } else {
+    m_State = COMPUTED;
+    return request.Reply(Json::Value());
+  }
 }
 
 cmServerResponse cmServerProtocol1_0::ProcessConfigure(
