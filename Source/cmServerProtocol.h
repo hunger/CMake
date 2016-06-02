@@ -115,6 +115,7 @@ private:
   cmServerResponse ProcessConfigure(const cmServerRequest& request);
   cmServerResponse ProcessGenerate(const cmServerRequest& request);
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);
+  cmServerResponse ProcessProject(const cmServerRequest& request);
   cmServerResponse ProcessReset(const cmServerRequest& request);
   cmServerResponse ProcessSetGlobalSettings(const cmServerRequest& request);
 

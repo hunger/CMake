@@ -14,7 +14,11 @@
 
 #include "cmExternalMakefileProjectGenerator.h"
 #include "cmGlobalGenerator.h"
+#include "cmLocalGenerator.h"
+#include "cmMakefile.h"
 #include "cmServer.h"
+#include "cmSourceFile.h"
+#include "cmSystemTools.h"
 #include "cmVersionMacros.h"
 #include "cmake.h"
 
@@ -23,27 +27,48 @@
 #include "cm_jsoncpp_value.h"
 #endif
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 namespace {
 // Vocabulary:
 
 char CONFIGURE_TYPE[] = "configure";
 char GENERATE_TYPE[] = "generate";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
+char PROJECT_TYPE[] = "project";
 char RESET_TYPE[] = "reset";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+char BUILD_PATH_KEY[] = "buildPath";
 char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
 char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
+char CONFIGURATIONS_KEY[] = "configurations";
+char CONFIGURATIONS_ONLY_KEY[] = "configurationsOnly";
 char COOKIE_KEY[] = "cookie";
+char CURRENT_BUILD_DIRECTORY_KEY[] = "currentBuildDirectory";
 char CURRENT_GENERATOR_KEY[] = "currentGenerator";
+char CURRENT_SOURCE_DIRECTORY_KEY[] = "currentSourceDirectory";
 char DEBUG_OUTPUT_KEY[] = "debugOutput";
+char FULL_NAME_KEY[] = "fullName";
 char GENERATORS_KEY[] = "generators";
+char INCLUDE_PATHS_KEY[] = "includePaths";
+char LANGUAGE[] = "lanugage";
+char LIMIT_TO_KEY[] = "limitTo";
 char MAJOR_KEY[] = "major";
 char MINOR_KEY[] = "minor";
+char NAME_KEY[] = "name";
 char PATCH_LEVEL_KEY[] = "patchLevel";
+char PROJECTS_KEY[] = "projects";
+char PROJECTS_ONLY_KEY[] = "projectsOnly";
 char STRING_KEY[] = "string";
+char SOURCES_KEY[] = "sources";
+char SOURCE_GROUPS_KEY[] = "sourceGroups";
 char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
+char TARGETS_KEY[] = "targets";
+char TARGET_TYPES_KEY[] = "targetTypes";
 char TRACE_EXPAND_KEY[] = "traceExpand";
 char TRACE_KEY[] = "trace";
 char TYPE_KEY[] = "type";
@@ -51,6 +76,68 @@ char VERSION_KEY[] = "version";
 char WARN_UNINITIALIZED_KEY[] = "warnUninitialized";
 char WARN_UNUSED_CLI_KEY[] = "warnUnusedCli";
 char WARN_UNUSED_KEY[] = "warnUnused";
+
+char LIST_UTILITY_TARGETS[] = "listUtilityTargets";
+char LIST_GLOBAL_TARGETS[] = "listGlobalTargets";
+
+#if 0
+struct SourceFileGroup
+{
+  SourceFileGroup() = default;
+  SourceFileGroup(const std::string& config,
+                  const std::vector<cmSourceFile*>& sources = {})
+    : Configurations({ config })
+    , Files(sources)
+  {
+  }
+
+  std::vector<std::string> IncludePaths() const;
+
+  SourceFileGroup(const SourceFileGroup& other) = default;
+  SourceFileGroup(SourceFileGroup&& other) = default;
+  SourceFileGroup& operator=(const SourceFileGroup& other) = default;
+  SourceFileGroup& operator=(SourceFileGroup&& other) = default;
+
+  std::vector<SourceFileGroup> split() const;
+
+  std::vector<std::string> Configurations;
+  const cmGeneratorTarget *Target = nullptr;
+  std::vector<cmSourceFile*> Files;
+
+private:
+  SourceFileGroup init() const;
+};
+
+std::vector<std::string> SourceFileGroup::IncludePaths() const
+{
+    const cmLocalGenerator *localGen = Target->GetLocalGenerator();
+
+    std::vector<std::string> result;
+    localGen->GetIncludeDirectories(result, Target, Files.at(0)->GetLanguage(), Configurations.at(0), true);
+    return result;
+}
+
+std::vector<SourceFileGroup> SourceFileGroup::split() const
+{
+  std::vector<SourceFileGroup> result;
+  if (Files.empty())
+    return result;
+
+  // FIXME: Do something!
+  result.push_back(SourceFileGroup(*this));
+  return result;
+}
+#endif
+
+static std::vector<std::string> getConfigurations(
+  const cmLocalGenerator* localGen)
+{
+  std::vector<std::string> configurations;
+  localGen->GetMakefile()->GetConfigurations(configurations);
+  if (configurations.empty())
+    configurations.push_back("");
+  return configurations;
+}
 
 } // namespace
 
@@ -191,6 +278,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
     return ProcessConfigure(request);
   if (request.Type == GENERATE_TYPE)
     return ProcessGenerate(request);
+  if (request.Type == PROJECT_TYPE)
+    return ProcessProject(request);
 
   return request.ReportError("Unknown command!");
 }
@@ -352,6 +441,238 @@ cmServerResponse cmServerProtocol0_1::ProcessGenerate(
     m_State = GENERATED;
     return request.Reply(Json::Value());
   }
+}
+
+#if 0
+static Json::Value DumpFile(const cmSourceFile* sf,
+                            const std::string& sourceDir)
+{
+  const std::string file = sf->GetFullPath();
+  const std::string relFile =
+    cmSystemTools::RelativePath(sourceDir.c_str(), file.c_str());
+
+  return Json::Value(relFile.size() < file.size() ? relFile : file);
+}
+
+static Json::Value DumpSourceFileGroup(const SourceFileGroup& sfg,
+                                       const std::string& sourceDir)
+{
+  Json::Value result = Json::objectValue;
+
+  assert(!sfg.Files.empty());
+  assert(!sfg.Configurations.empty());
+
+  const cmSourceFile* source = sfg.Files.at(0);
+  Json::Value configs = Json::arrayValue;
+  for (const auto& c : sfg.Configurations) {
+    configs.append(c);
+  }
+  result[CONFIGURATION_KEY] = configs;
+
+  result[LANGUAGE] = source->GetLanguage();
+  Json::Value includes = Json::arrayValue;
+  for (const std::string &i : sfg.IncludePaths()) {
+      includes.append(i);
+  }
+  result[INCLUDE_PATHS_KEY] = includes;
+
+  Json::Value sources = Json::arrayValue;
+  for (const cmSourceFile* s : sfg.Files) {
+    sources.append(DumpFile(s, sourceDir));
+  }
+
+  result[SOURCES_KEY] = sources;
+
+  return result;
+}
+
+static Json::Value DumpSourceFileGroupsList(
+  const cmGeneratorTarget* targetGen,
+  const std::vector<std::string>& configurations)
+{
+
+  Json::Value result = Json::arrayValue;
+
+  std::vector<SourceFileGroup> groups;
+
+  SourceFileGroup commonGroup;
+  commonGroup.Configurations = configurations;
+  commonGroup.Target = targetGen;
+  groups.push_back(commonGroup);
+
+  // Calculate common set of files:
+  for (size_t i = 0; i < configurations.size(); ++i) {
+    std::vector<cmSourceFile*> configFiles;
+    targetGen->GetSourceFiles(configFiles, configurations.at(i));
+    std::sort(configFiles.begin(), configFiles.end());
+
+    if (i == 0) {
+      commonGroup.Files = configFiles;
+    } else {
+      SourceFileGroup newGroup(configurations.at(i), configFiles);
+      newGroup.Target = targetGen;
+      groups.push_back(newGroup);
+
+      configFiles.clear();
+
+      std::set_intersection(commonGroup.Files.begin(), commonGroup.Files.end(),
+                            newGroup.Files.begin(), newGroup.Files.end(),
+                            configFiles.begin());
+      commonGroup.Files = configFiles;
+    }
+  }
+  groups[0] = commonGroup; // Push new file list
+
+  // Trim common files from "uncommon" groups:
+  for (size_t i = 1; i < groups.size(); ++i) {
+    std::vector<cmSourceFile*> tmp;
+    SourceFileGroup& newGroup = groups.at(i);
+
+    std::set_difference(newGroup.Files.begin(), newGroup.Files.end(),
+                        commonGroup.Files.begin(), commonGroup.Files.end(),
+                        tmp.begin());
+    newGroup.Files = tmp;
+  }
+
+  std::vector<SourceFileGroup> splitGroups;
+  for (const SourceFileGroup& i : groups) {
+    std::vector<SourceFileGroup> split = i.split();
+    splitGroups.insert(splitGroups.end(), split.begin(), split.end());
+  }
+
+  for (const SourceFileGroup& i : splitGroups) {
+    result.append(DumpSourceFileGroup(
+      i, targetGen->GetLocalGenerator()->GetCurrentSourceDirectory()));
+  }
+
+  return result;
+}
+
+#endif
+static Json::Value DumpTarget(const cmGeneratorTarget *target, const Json::Value &limits)
+{
+    Json::Value result = Json::objectValue;
+
+    const cmLocalGenerator* localGen = target->GetLocalGenerator();
+    const cmState* state = localGen->GetState();
+
+    result[NAME_KEY] = target->GetName();
+
+    const cmState::TargetType type = target->GetType();
+    if (type == cmState::UTILITY && !listUtilityTargets)
+      continue;
+    if (type == cmState::GLOBAL_TARGET && !listGlobalTargets)
+      continue;
+
+    result[TYPE_KEY] = state->GetTargetTypeName(type);
+    result[FULL_NAME_KEY] = target->GetFullName(config);
+
+    const cmGeneratorTarget::OutputInfo* output =
+            target->GetOutputInfo(config);
+    if (output)
+        result[BUILD_PATH_KEY] = output->OutDir;
+    }
+
+    // result[SOURCE_GROUPS_KEY] = DumpSourceFileGroupsList(target, configurations);
+
+    return result;
+}
+
+static Json::Value DumpTargetList(
+  const std::vector<cmLocalGenerator*>& generators, const Json::Value &limits)
+{
+  Json::Value result = Json::arrayValue;
+
+  std::set<const cmGeneratorTarget*> targetList;
+  for (const auto& lgIt : generators) {
+    auto list = lgIt->GetGeneratorTargets();
+    targetList.insert(targetList.end(), list.begin(), list.end());
+  }
+
+  for (const cmGeneratorTarget* target : std::sort(targetList.begin(), targetList.end())) {
+    result.append(DumpTarget(target, limits));
+  }
+
+  return result;
+}
+
+static Json::Value DumpConfiguration(const std::string &config, const std::vector<cmLocalGenerator *> targetList, const Json::Value &limits)
+{
+    Json::Value result = Json::objectValue;
+    result[NAME_KEY] = config;
+
+    const Json::Value cl = limits[CONFIGURATIONS_KEY];
+    const bool isTrimmed = !cl.isNull() && std::find_if(cl.begin(), cl.end(), [config](const Json::Value &v) {
+       return v.asString() == config;
+    }) == cl.end();
+
+    if (isTrimmed) {
+        result[TARGETS_KEY] = "<trimmed>";
+    } else if (limits[CONFIGURATIONS_ONLY_KEY].asBool()) {
+        result[TARGETS_KEY] = "<skipped>";
+    } else {
+        result[TARGETS_KEY] = DumpTargetList(targetList, limits);
+    }
+
+    return result;
+}
+
+static Json::Value DumpConfigurationsList(const cmLocalGenerator *lg, const std::vector<cmLocalGenerator *> targetList, const Json::Value &limits)
+{
+    Json::Value result = Json::arrayValue;
+
+    for (const std::string &c : getConfigurations(lg)) {
+        result.append(DumpConfiguration(c, targetList, limits));
+    }
+
+    return result;
+}
+
+static Json::Value DumpProjectList(const cmGlobalGenerator* globalGen,
+                                   const Json::Value &limits)
+{
+  Json::Value result = Json::arrayValue;
+
+  for (const auto& projectIt : globalGen->GetProjectMap()) {
+    Json::Value pObj = Json::objectValue;
+    pObj[NAME_KEY] = projectIt.first;
+
+    assert(projectIt.second.size() >
+           0); // All Projects must have at least one local generator
+    const cmLocalGenerator* lg = projectIt.second.at(0);
+
+    // Project structure information:
+    const cmMakefile* mf = lg->GetMakefile();
+    pObj[CURRENT_SOURCE_DIRECTORY_KEY] = mf->GetCurrentSourceDirectory();
+    pObj[CURRENT_BUILD_DIRECTORY_KEY] = mf->GetCurrentBinaryDirectory();
+
+    if (limits[PROJECTS_ONLY_KEY].asBool()) {
+        pObj[CONFIGURATIONS_KEY] = "<skipped>";
+    } else {
+        pObj[CONFIGURATIONS_KEY] =
+                DumpConfigurationsList(lg, projectIt.second, limits);
+    }
+
+    result.append(pObj);
+  }
+
+  return result;
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessProject(
+  const cmServerRequest& request)
+{
+  if (m_State != GENERATED) {
+    return request.ReportError("No build system was generated yet.");
+  }
+
+  Json::Value limits = request.Data[LIMIT_TO_KEY];
+
+  const cmGlobalGenerator* gg = CMakeInstance()->GetGlobalGenerator();
+
+  Json::Value result = Json::objectValue;
+  result[PROJECTS_KEY] = DumpProjectList(gg, limits);
+  return request.Reply(result);
 }
 
 static bool setString(const cmServerRequest& request, const std::string& key,
