@@ -14,6 +14,7 @@
 
 #include "cmExternalMakefileProjectGenerator.h"
 #include "cmGlobalGenerator.h"
+#include "cmListFileCache.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
 #include "cmServer.h"
@@ -34,6 +35,7 @@
 namespace {
 // Vocabulary:
 
+char BUILD_SYSTEM_TYPE[] = "buildSystem";
 char CONFIGURE_TYPE[] = "configure";
 char GENERATE_TYPE[] = "generate";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
@@ -43,8 +45,10 @@ char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
 char ARTIFACTS_KEY[] = "artifacts";
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+char BUILD_FILES_KEY[] = "buildFiles";
 char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
 char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
+char CMAKE_ROOT_DIRECTORY_KEY[] = "cmakeRootDirectory";
 char COMPILE_FLAGS_KEY[] = "compileFlags";
 char CONFIGURATIONS_KEY[] = "configurations";
 char COOKIE_KEY[] = "cookie";
@@ -58,8 +62,10 @@ char FULL_NAME_KEY[] = "fullName";
 char GENERATORS_KEY[] = "generators";
 char INCLUDE_PATH_KEY[] = "includePath";
 char INCLUDE_GENERATED_FILES_KEY[] = "includeGeneratedFiles";
+char IS_CMAKE_KEY[] = "isCMake";
 char IS_GENERATED_KEY[] = "isGenerated";
 char IS_SYSTEM_KEY[] = "isSystem";
+char IS_TEMPORARY_KEY[] = "isTemporary";
 char LANGUAGE_KEY[] = "lanugage";
 char LINKER_LANGUAGE_KEY[] = "linkerLanguage";
 char LINK_FLAGS_KEY[] = "linkFlags";
@@ -259,10 +265,83 @@ void cmServerProtocol0_1::DoReset()
   m_State = ACTIVE;
 }
 
+cmServerResponse cmServerProtocol0_1::ProcessBuildSystem(
+  const cmServerRequest& request)
+{
+  if (m_State < CONFIGURED) {
+    return request.ReportError("This instance was not yet configured.");
+  }
+
+  const cmake* cm = CMakeInstance();
+  const cmGlobalGenerator* gg = cm->GetGlobalGenerator();
+  const std::string cmakeRootDir = cmSystemTools::GetCMakeRoot();
+  const std::string buildDir = cm->GetHomeOutputDirectory();
+  const std::string sourceDir = cm->GetHomeDirectory();
+
+  Json::Value result = Json::objectValue;
+  result[SOURCE_DIRECTORY_KEY] = sourceDir;
+  result[CMAKE_ROOT_DIRECTORY_KEY] = cmakeRootDir;
+
+  std::vector<std::string> internalFiles;
+  std::vector<std::string> explicitFiles;
+  std::vector<std::string> tmpFiles;
+
+  std::vector<cmMakefile*> makefiles = gg->GetMakefiles();
+  for (auto it = makefiles.begin(); it != makefiles.end(); ++it) {
+    const std::vector<std::string> listFiles = (*it)->GetListFiles();
+
+    for (auto jt = listFiles.begin(); jt != listFiles.end(); ++jt) {
+
+      const bool isInternal = (jt->find(cmakeRootDir + '/') == 0);
+      const bool isTemporary = !isInternal && (jt->find(buildDir + '/') == 0);
+
+      const std::string& relative =
+        cmSystemTools::RelativePath(sourceDir.c_str(), jt->c_str());
+      const std::string toAdd = relative.size() < jt->size() ? relative : *jt;
+
+      if (isInternal) {
+        internalFiles.push_back(toAdd);
+      } else {
+        if (isTemporary) {
+          tmpFiles.push_back(toAdd);
+        } else {
+          explicitFiles.push_back(toAdd);
+        }
+      }
+    }
+  }
+
+  Json::Value array = Json::arrayValue;
+
+  Json::Value tmp = Json::objectValue;
+  tmp[IS_CMAKE_KEY] = true;
+  tmp[IS_TEMPORARY_KEY] = false;
+  tmp[SOURCES_KEY] = fromStringList(internalFiles);
+  array.append(tmp);
+
+  tmp = Json::objectValue;
+  tmp[IS_CMAKE_KEY] = false;
+  tmp[IS_TEMPORARY_KEY] = false;
+  tmp[SOURCES_KEY] = fromStringList(explicitFiles);
+  array.append(tmp);
+
+  tmp = Json::objectValue;
+  tmp[IS_CMAKE_KEY] = false;
+  tmp[IS_TEMPORARY_KEY] = true;
+  tmp[SOURCES_KEY] = fromStringList(tmpFiles);
+  array.append(tmp);
+
+  result[BUILD_FILES_KEY] = array;
+
+  return request.Reply(result);
+}
+
 const cmServerResponse cmServerProtocol0_1::Process(
   const cmServerRequest& request)
 {
   assert(m_State >= ACTIVE);
+  if (request.Type == BUILD_SYSTEM_TYPE)
+    return ProcessBuildSystem(request);
   if (request.Type == GLOBAL_SETTINGS_TYPE)
     return ProcessGlobalSettings(request);
   if (request.Type == SET_GLOBAL_SETTINGS_TYPE)
