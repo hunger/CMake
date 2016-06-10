@@ -119,6 +119,7 @@ private:
 
   // Handle requests:
   cmServerResponse ProcessBuildSystem(const cmServerRequest& request);
+  cmServerResponse ProcessCache(const cmServerRequest& request);
   cmServerResponse ProcessConfigure(const cmServerRequest& request);
   cmServerResponse ProcessGenerate(const cmServerRequest& request);
   cmServerResponse ProcessGlobalSettings(const cmServerRequest& request);

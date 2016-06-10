@@ -12,6 +12,7 @@
 
 #include "cmServerProtocol.h"
 
+#include "cmCacheManager.h"
 #include "cmExternalMakefileProjectGenerator.h"
 #include "cmGlobalGenerator.h"
 #include "cmListFileCache.h"
@@ -40,6 +41,7 @@ char CONFIGURE_TYPE[] = "configure";
 char GENERATE_TYPE[] = "generate";
 char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 char PROJECT_TYPE[] = "project";
+char CACHE_TYPE[] = "cache";
 char RESET_TYPE[] = "reset";
 char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 
@@ -47,6 +49,7 @@ char ARTIFACTS_KEY[] = "artifacts";
 char BUILD_DIRECTORY_KEY[] = "buildDirectory";
 char BUILD_FILES_KEY[] = "buildFiles";
 char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
+char CACHE_KEY[] = "cache";
 char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
 char CMAKE_ROOT_DIRECTORY_KEY[] = "cmakeRootDirectory";
 char COMPILE_FLAGS_KEY[] = "compileFlags";
@@ -66,6 +69,8 @@ char IS_CMAKE_KEY[] = "isCMake";
 char IS_GENERATED_KEY[] = "isGenerated";
 char IS_SYSTEM_KEY[] = "isSystem";
 char IS_TEMPORARY_KEY[] = "isTemporary";
+char KEY_KEY[] = "key";
+char KEYS_KEY[] = "keys";
 char LANGUAGE_KEY[] = "lanugage";
 char LINKER_LANGUAGE_KEY[] = "linkerLanguage";
 char LINK_FLAGS_KEY[] = "linkFlags";
@@ -78,6 +83,7 @@ char NAME_KEY[] = "name";
 char PATCH_LEVEL_KEY[] = "patchLevel";
 char PATH_KEY[] = "path";
 char PROJECTS_KEY[] = "projects";
+char PROPERTIES_KEY[] = "properties";
 char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
 char SOURCES_KEY[] = "sources";
 char STRING_KEY[] = "string";
@@ -87,6 +93,7 @@ char TARGET_TYPES_KEY[] = "targetTypes";
 char TRACE_EXPAND_KEY[] = "traceExpand";
 char TRACE_KEY[] = "trace";
 char TYPE_KEY[] = "type";
+char VALUE_KEY[] = "value";
 char VERSION_KEY[] = "version";
 char WARN_UNINITIALIZED_KEY[] = "warnUninitialized";
 char WARN_UNUSED_CLI_KEY[] = "warnUnusedCli";
@@ -342,6 +349,8 @@ const cmServerResponse cmServerProtocol0_1::Process(
   assert(m_State >= ACTIVE);
   if (request.Type == BUILD_SYSTEM_TYPE)
     return ProcessBuildSystem(request);
+  if (request.Type == CACHE_TYPE)
+    return ProcessCache(request);
   if (request.Type == GLOBAL_SETTINGS_TYPE)
     return ProcessGlobalSettings(request);
   if (request.Type == SET_GLOBAL_SETTINGS_TYPE)
@@ -412,6 +421,57 @@ cmServerResponse cmServerProtocol0_1::ProcessGlobalSettings(
   obj[BUILD_DIRECTORY_KEY] = cm->GetHomeOutputDirectory();
 
   return request.Reply(obj);
+}
+
+cmServerResponse cmServerProtocol0_1::ProcessCache(
+  const cmServerRequest& request)
+{
+  if (m_State < CONFIGURED) {
+    return request.ReportError("This project was not configured yet.");
+  }
+
+  cmState* state = CMakeInstance()->GetState();
+
+  Json::Value result = Json::objectValue;
+
+  std::vector<std::string> allKeys = state->GetCacheEntryKeys();
+
+  Json::Value list = Json::arrayValue;
+  std::vector<std::string> keys = toStringList(request.Data[KEYS_KEY]);
+  if (keys.empty()) {
+    keys = allKeys;
+  } else {
+    for (auto i : keys) {
+      if (std::find_if(allKeys.begin(), allKeys.end(),
+                       [i](const std::string& j) { return i == j; }) ==
+          allKeys.end()) {
+        return request.ReportError("Key \"" + i + "\" not found in cache.");
+      }
+    }
+  }
+  std::sort(keys.begin(), keys.end());
+  for (auto key : keys) {
+    Json::Value entry = Json::objectValue;
+    entry[KEY_KEY] = key;
+    entry[TYPE_KEY] =
+      cmState::CacheEntryTypeToString(state->GetCacheEntryType(key));
+    entry[VALUE_KEY] = state->GetCacheEntryValue(key);
+
+    Json::Value props = Json::objectValue;
+    bool haveProperties = false;
+    for (auto prop : state->GetCacheEntryPropertyList(key)) {
+      haveProperties = true;
+      props[prop] = state->GetCacheEntryProperty(key, prop);
+    }
+    if (haveProperties) {
+      entry[PROPERTIES_KEY] = props;
+    }
+
+    list.append(entry);
+  }
+
+  result[CACHE_KEY] = list;
+  return request.Reply(result);
 }
 
 cmServerResponse cmServerProtocol0_1::ProcessConfigure(

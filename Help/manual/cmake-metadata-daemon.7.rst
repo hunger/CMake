@@ -467,3 +467,37 @@ The list of files which "isCMake" set to true are part of the cmake installation
 
 The list of files witch "isTemporary" set to true are part of the build directory
 and will not survive the build directory getting cleaned out.
+
+
+Type "cache"
+^^^^^^^^^^^^
+
+The "cache" request can be used once a project is configured and will
+list the cached configuration values.
+
+Example::
+  [== CMake MetaMagic ==[
+  {"type":"cache"}
+  ]== CMake MetaMagic ==]
+
+CMake will respond with the following output::
+  [== CMake MetaMagic ==[
+  {
+    "cookie":"","inReplyTo":"cache","type":"reply",
+    "cache":
+    [
+      {
+        "key":"SOMEVALUE",
+        "properties":
+        {
+          "ADVANCED":"1",
+          "HELPSTRING":"This is not helpful"
+        }
+        "type":"STRING",
+        "value":"TEST"}
+    ]
+  }
+  ]== CMake MetaMagic ==]
+
+The output can be limited to a list of keys by passing an array of key names
+to the "keys" optional field of the "cache" request.
