@@ -526,7 +526,13 @@ public:
   void GetTargetVersion(bool soversion, int& major, int& minor,
                         int& patch) const;
 
+  std::string GetFortranModuleDirectory();
+
 private:
+  std::string CreateFortranModuleDirectory();
+  bool FortranModuleDirectoryCreated;
+  std::string FortranModuleDirectory;
+
   friend class cmTargetTraceDependencies;
   struct SourceEntry
   {
