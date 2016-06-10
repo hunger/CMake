@@ -321,6 +321,8 @@ public:
   std::string GetFrameworkFlags(std::string const& l,
                                 std::string const& config,
                                 cmGeneratorTarget* target);
+  std::string GetFortranFlags(cmGeneratorTarget* target,
+                              const std::string& config);
 
   virtual void ComputeObjectFilenames(
     std::map<cmSourceFile const*, std::string>& mapping,
