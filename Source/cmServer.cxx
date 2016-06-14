@@ -22,6 +22,11 @@
 #include "cm_jsoncpp_value.h"
 #endif
 
+#include <chrono>
+#include <iostream>
+#include <fstream>
+#include <memory>
+
 const char TYPE_KEY[] = "type";
 const char COOKIE_KEY[] = "cookie";
 const char REPLY_TO_KEY[] = "inReplyTo";
@@ -31,6 +36,17 @@ const char ERROR_TYPE[] = "error";
 const char REPLY_TYPE[] = "reply";
 const char PROGRESS_TYPE[] = "progress";
 const char MESSAGE_TYPE[] = "message";
+
+class cmServer::DebugInfo {
+public:
+  DebugInfo() : StartTime(std::chrono::high_resolution_clock::now()) { }
+
+  bool PrettyPrint = false;
+  bool PrintStatistics = false;
+
+  std::string OutputFile;
+  std::chrono::high_resolution_clock::time_point StartTime;
+};
 
 typedef struct
 {
@@ -137,13 +153,22 @@ void cmServer::PopOne()
     return;
   }
 
+  std::unique_ptr<DebugInfo>(debug);
+  Json::Value debugValue = value["debug"];
+  if (!debugValue.isNull()) {
+    debug = std::make_unique<DebugInfo>();
+    debug->OutputFile = debugValue["dumpToFile"].asString();
+    debug->PrettyPrint = debugValue["prettyPrint"].asBool();
+    debug->PrintStatistics = debugValue["showStats"].asBool();
+  }
+
   const cmServerRequest request(this, value[TYPE_KEY].asString(),
                                 value[COOKIE_KEY].asString(), value);
 
   if (request.Type == "") {
     cmServerResponse response(request);
     response.SetError("No type given in request.");
-    WriteResponse(response);
+    WriteResponse(response, nullptr);
     return;
   }
 
@@ -152,9 +177,9 @@ void cmServer::PopOne()
   if (m_Protocol) {
     m_Protocol->CMakeInstance()->SetProgressCallback(
       reportProgress, const_cast<cmServerRequest*>(&request));
-    WriteResponse(m_Protocol->Process(request));
+    WriteResponse(m_Protocol->Process(request), debug.get());
   } else {
-    WriteResponse(SetProtocolVersion(request));
+    WriteResponse(SetProtocolVersion(request), debug.get());
   }
 }
 
@@ -296,7 +321,7 @@ bool cmServer::Serve()
     protocolVersions.append(tmp);
   }
 
-  WriteJsonObject(hello);
+  WriteJsonObject(hello, nullptr);
 
   if (uv_guess_handle(1) == UV_TTY) {
     uv_read_start((uv_stream_t*)&m_StdinTty, alloc_buffer, read_stdin);
@@ -308,13 +333,44 @@ bool cmServer::Serve()
   return true;
 }
 
-void cmServer::WriteJsonObject(const Json::Value& jsonValue)
+void cmServer::WriteJsonObject(const Json::Value& jsonValue, const DebugInfo *debug)
 {
   Json::FastWriter writer;
+
+  Json::Value copy = jsonValue;
+  auto beforeJson = std::chrono::high_resolution_clock::now();
 
   std::string result = "\n[== CMake MetaMagic ==[\n";
   result += writer.write(jsonValue);
   result += "]== CMake MetaMagic ==]\n";
+
+
+  if (debug && debug->PrintStatistics) {
+      Json::Value stats = Json::objectValue;
+      auto endTime = std::chrono::high_resolution_clock::now();
+
+      auto serializationDiff = endTime - beforeJson;
+      stats["jsonSerialization"] = std::chrono::duration <double, std::milli> (serializationDiff).count();
+      auto totalDiff = endTime - debug->StartTime;
+      stats["totalTime"] = std::chrono::duration <double, std::milli> (totalDiff).count();
+      stats["size"] = static_cast<int>(result.size());
+
+      copy["zzzDebug"] =  stats;
+  }
+
+  if (debug && debug->PrettyPrint) {
+      Json::StyledWriter fancyWriter;
+      result = "\n[== CMake MetaMagic ==[\n";
+      result += fancyWriter.write(copy);
+      result += "]== CMake MetaMagic ==]\n";
+  }
+
+  if (debug && !debug->OutputFile.empty()) {
+      std::ofstream myfile;
+      myfile.open(debug->OutputFile);
+      myfile << result;
+      myfile.close();
+  }
 
   this->m_Writing = true;
   if (uv_guess_handle(1) == UV_TTY) {
@@ -355,7 +411,7 @@ void cmServer::WriteProgress(const cmServerRequest& request, int min,
   obj["progressMaximum"] = max;
   obj["progressCurrent"] = current;
 
-  WriteJsonObject(obj);
+  WriteJsonObject(obj, nullptr);
 }
 
 void cmServer::WriteMessage(const cmServerRequest& request,
@@ -374,7 +430,7 @@ void cmServer::WriteMessage(const cmServerRequest& request,
     obj["title"] = title;
   }
 
-  WriteJsonObject(obj);
+  WriteJsonObject(obj, nullptr);
 }
 
 void cmServer::WriteParseError(const std::string& message)
@@ -385,10 +441,10 @@ void cmServer::WriteParseError(const std::string& message)
   obj[REPLY_TO_KEY] = "";
   obj[COOKIE_KEY] = "";
 
-  WriteJsonObject(obj);
+  WriteJsonObject(obj, nullptr);
 }
 
-void cmServer::WriteResponse(const cmServerResponse& response)
+void cmServer::WriteResponse(const cmServerResponse& response, const DebugInfo* debug)
 {
   assert(response.IsComplete());
 
@@ -400,5 +456,5 @@ void cmServer::WriteResponse(const cmServerResponse& response)
     obj[ERROR_MESSAGE_KEY] = response.ErrorMessage();
   }
 
-  WriteJsonObject(obj);
+  WriteJsonObject(obj, debug);
 }

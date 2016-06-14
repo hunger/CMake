@@ -135,9 +135,7 @@ Json::Value cmServerResponse::Data() const
   return m_Data;
 }
 
-cmServerProtocol::~cmServerProtocol()
-{
-}
+cmServerProtocol::~cmServerProtocol() = default;
 
 void cmServerProtocol::Activate()
 {

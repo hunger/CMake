@@ -34,6 +34,8 @@ public:
   cmServer(bool supportExperimental);
   ~cmServer();
 
+  class DebugInfo;
+
   bool Serve();
 
   // for callbacks:
@@ -55,10 +57,10 @@ private:
                      int max, const std::string& message);
   void WriteMessage(const cmServerRequest& request, const std::string& message,
                     const std::string& title);
-  void WriteResponse(const cmServerResponse& response);
+  void WriteResponse(const cmServerResponse& response, const DebugInfo *debug);
   void WriteParseError(const std::string& message);
 
-  void WriteJsonObject(Json::Value const& jsonValue);
+  void WriteJsonObject(Json::Value const& jsonValue, const DebugInfo* debug);
 
   static cmServerProtocol* FindMatchingProtocol(
     const std::vector<cmServerProtocol*>& protocols, int major, int minor);
