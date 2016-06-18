@@ -73,7 +73,7 @@ def writePayload(cmakeCommand, obj):
   writeRawData(cmakeCommand, json.dumps(obj))
 
 def initProc(cmakeCommand):
-  cmakeCommand = subprocess.Popen([cmakeCommand, "-E", "daemon"],
+  cmakeCommand = subprocess.Popen([cmakeCommand, "-E", "daemon", "--experimental"],
                                   stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
 

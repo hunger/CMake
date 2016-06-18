@@ -910,13 +910,27 @@ int cmcmd::ExecuteCMakeCommand(std::vector<std::string>& args)
       }
       return 0;
     } else if (args[1] == "daemon") {
-      if (args.size() > 2) {
+      if (args.size() > 3) {
         return 1;
       }
+      bool supportExperimental = false;
+      if (args.size() == 3) {
+        if (args[2] == "--experimental") {
+          supportExperimental = true;
+        } else {
+          return 1;
+        }
+      }
 #if defined(HAVE_DAEMON_MODE) && HAVE_DAEMON_MODE
-      cmServer server;
-      server.Serve();
-      return 0;
+      cmServer server(supportExperimental);
+      if (server.Serve()) {
+        return 0;
+      } else {
+        cmSystemTools::Error("Daemon could not find any supported protocol. "
+                             "Try with \"--experimental\" to enable "
+                             "experimental support.");
+        return 1;
+      }
 #else
       cmSystemTools::Error("CMake was not built with daemon mode enabled");
       return 1;
