@@ -142,3 +142,8 @@ const cmServerResponse cmServerProtocol1_0::Process(
 
   return request.ReportError("Unknown command!");
 }
+
+bool cmServerProtocol1_0::IsExperimental() const
+{
+  return true;
+}

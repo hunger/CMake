@@ -31,10 +31,10 @@ class cmServerResponse;
 class cmServer
 {
 public:
-  cmServer();
+  cmServer(bool supportExperimental);
   ~cmServer();
 
-  void Serve();
+  bool Serve();
 
   // for callbacks:
   void PopOne();
@@ -42,6 +42,8 @@ public:
 
 private:
   void RegisterProtocol(cmServerProtocol* protocol);
+
+  void PrintHello();
 
   // Handle requests:
   cmServerResponse SetProtocolVersion(const cmServerRequest& request);
@@ -56,6 +58,8 @@ private:
 
   static cmServerProtocol* FindMatchingProtocol(
     const std::vector<cmServerProtocol*>& protocols, int major, int minor);
+
+  const bool SupportExperimental;
 
   cmServerProtocol* Protocol = nullptr;
   std::vector<cmServerProtocol*> SupportedProtocols;
