@@ -183,6 +183,25 @@ void cmServer::RegisterProtocol(cmServerProtocol* protocol)
     this->SupportedProtocols.push_back(protocol);
 }
 
+void cmServer::PrintHello()
+{
+  Json::Value hello = Json::objectValue;
+  hello[TYPE_KEY] = "hello";
+
+  Json::Value& protocolVersions = hello["supportedProtocolVersions"] =
+    Json::arrayValue;
+
+  for (auto const& proto : this->SupportedProtocols) {
+    auto version = proto->ProtocolVersion();
+    Json::Value tmp = Json::objectValue;
+    tmp["major"] = version.first;
+    tmp["minor"] = version.second;
+    protocolVersions.append(tmp);
+  }
+
+  this->WriteJsonObject(hello);
+}
+
 cmServerResponse cmServer::SetProtocolVersion(const cmServerRequest& request)
 {
   if (request.Type != "handshake")
@@ -250,21 +269,7 @@ void cmServer::Serve()
     OutputStream = reinterpret_cast<uv_stream_t*>(&this->Output.pipe);
   }
 
-  Json::Value hello = Json::objectValue;
-  hello[TYPE_KEY] = "hello";
-
-  Json::Value& protocolVersions = hello["supportedProtocolVersions"] =
-    Json::arrayValue;
-
-  for (auto const& proto : this->SupportedProtocols) {
-    auto version = proto->ProtocolVersion();
-    Json::Value tmp = Json::objectValue;
-    tmp["major"] = version.first;
-    tmp["minor"] = version.second;
-    protocolVersions.append(tmp);
-  }
-
-  this->WriteJsonObject(hello);
+  this->PrintHello();
 
   uv_read_start(this->InputStream, alloc_buffer, read_stdin);
 
