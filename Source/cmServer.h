@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+class cmServerConnection;
 class cmServerProtocol;
 class cmServerRequest;
 class cmServerResponse;
@@ -31,21 +32,21 @@ class cmServerResponse;
 class cmServer
 {
 public:
-  cmServer(bool supportExperimental);
+  cmServer(cmServerConnection *conn, bool supportExperimental);
   ~cmServer();
 
   class DebugInfo;
 
-  bool Serve();
-
-  // for callbacks:
-  void PopOne();
-  void handleData(std::string const& data);
+  bool Serve(std::string *errorMessage);
 
 private:
   void RegisterProtocol(cmServerProtocol* protocol);
 
   void PrintHello();
+
+  // Callbacks from cmServerConnection:
+  void PopOne();
+  void QueueRequest(const std::string &request);
 
   static void reportProgress(const char* msg, float progress, void* data);
   static void reportMessage(const char* msg, const char* title, bool& cancel,
@@ -67,28 +68,13 @@ private:
   static cmServerProtocol* FindMatchingProtocol(
     const std::vector<cmServerProtocol*>& protocols, int major, int minor);
 
+  cmServerConnection *Connection = nullptr;
   const bool SupportExperimental;
 
   cmServerProtocol* Protocol = nullptr;
   std::vector<cmServerProtocol*> SupportedProtocols;
   std::vector<std::string> Queue;
 
-  std::string DataBuffer;
-  std::string JsonData;
-
-  uv_loop_t* Loop = nullptr;
-
-  typedef union {
-    uv_tty_t tty;
-    uv_pipe_t pipe;
-  } InOutUnion;
-
-  InOutUnion Input;
-  InOutUnion Output;
-  uv_stream_t *InputStream = nullptr;
-  uv_stream_t *OutputStream = nullptr;
-
-  bool Writing = false;
-
   friend class cmServerRequest;
+  friend class cmServerConnection;
 };
