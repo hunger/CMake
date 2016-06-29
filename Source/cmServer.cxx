@@ -40,7 +40,8 @@ typedef struct
 void alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
   (void)handle;
-  *buf = uv_buf_init(static_cast<char*>(malloc(suggested_size)), suggested_size);
+  *buf =
+    uv_buf_init(static_cast<char*>(malloc(suggested_size)), suggested_size);
 }
 
 void free_write_req(uv_write_t* req)
@@ -62,9 +63,11 @@ void write_data(uv_stream_t* dest, std::string content, uv_write_cb cb)
 {
   write_req_t* req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
   req->req.data = dest->data;
-  req->buf = uv_buf_init(static_cast<char*>(malloc(content.size())), content.size());
+  req->buf =
+    uv_buf_init(static_cast<char*>(malloc(content.size())), content.size());
   memcpy(req->buf.base, content.c_str(), content.size());
-  uv_write(reinterpret_cast<uv_write_t*>(req), static_cast<uv_stream_t*>(dest), &req->buf, 1, cb);
+  uv_write(reinterpret_cast<uv_write_t*>(req), static_cast<uv_stream_t*>(dest),
+           &req->buf, 1, cb);
 }
 
 void read_stdin(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
@@ -111,8 +114,8 @@ cmServer::~cmServer()
   if (!this->Protocol) // Daemon was never fully started!
     return;
 
-  uv_close(reinterpret_cast<uv_handle_t *>(this->InputStream), NULL);
-  uv_close(reinterpret_cast<uv_handle_t *>(this->OutputStream), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(this->InputStream), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(this->OutputStream), NULL);
   uv_loop_close(this->Loop);
 
   for (cmServerProtocol* p : this->SupportedProtocols) {
@@ -148,29 +151,25 @@ void cmServer::PopOne()
   }
 
   this->WriteResponse(this->Protocol ? this->Protocol->Process(request)
-                                       : this->SetProtocolVersion(request));
+                                     : this->SetProtocolVersion(request));
 }
 
 void cmServer::handleData(const std::string& data)
 {
-#ifdef _WIN32
-  const char LINE_SEP[] = "\r\n";
-#else
-  const char LINE_SEP[] = "\n";
-#endif
-
   this->DataBuffer += data;
 
   for (;;) {
-    auto needle = this->DataBuffer.find(LINE_SEP);
+    auto needle = this->DataBuffer.find('\n');
 
     if (needle == std::string::npos) {
       return;
     }
     std::string line = this->DataBuffer.substr(0, needle);
+    const auto ls = line.size();
+    if (ls > 1 && line.at(ls - 1) == '\r')
+      line.erase(ls - 1, 1);
     this->DataBuffer.erase(this->DataBuffer.begin(),
-                             this->DataBuffer.begin() + needle +
-                               sizeof(LINE_SEP) - 1);
+                           this->DataBuffer.begin() + needle + 1);
     if (line == "[== CMake MetaMagic ==[") {
       this->JsonData.clear();
       continue;
