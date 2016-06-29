@@ -87,29 +87,8 @@ void read_stdin(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
 cmServer::cmServer()
 {
-  this->Loop = uv_default_loop();
-
-  if (uv_guess_handle(1) == UV_TTY) {
-    uv_tty_init(this->Loop, &this->Input.tty, 0, 1);
-    uv_tty_set_mode(&this->Input.tty, UV_TTY_MODE_NORMAL);
-    this->Input.tty.data = this;
-    InputStream = reinterpret_cast<uv_stream_t*>(&this->Input.tty);
-
-    uv_tty_init(this->Loop, &this->Output.tty, 1, 0);
-    uv_tty_set_mode(&this->Output.tty, UV_TTY_MODE_NORMAL);
-    this->Output.tty.data = this;
-    OutputStream = reinterpret_cast<uv_stream_t*>(&this->Output.tty);
-  } else {
-    uv_pipe_init(this->Loop, &this->Input.pipe, 0);
-    uv_pipe_open(&this->Input.pipe, 0);
-    this->Input.pipe.data = this;
-    InputStream = reinterpret_cast<uv_stream_t*>(&this->Input.pipe);
-
-    uv_pipe_init(this->Loop, &this->Output.pipe, 0);
-    uv_pipe_open(&this->Output.pipe, 1);
-    this->Output.pipe.data = this;
-    OutputStream = reinterpret_cast<uv_stream_t*>(&this->Output.pipe);
-  }
+  // Register supported protocols:
+  this->RegisterProtocol(new cmServerProtocol1_0);
 }
 
 cmServer::~cmServer()
@@ -244,11 +223,32 @@ cmServerResponse cmServer::SetProtocolVersion(const cmServerRequest& request)
 
 void cmServer::Serve()
 {
-  // Register supported protocols:
-  this->RegisterProtocol(new cmServerProtocol1_0);
-
   assert(!this->SupportedProtocols.empty());
   assert(!this->Protocol);
+
+  this->Loop = uv_default_loop();
+
+  if (uv_guess_handle(1) == UV_TTY) {
+    uv_tty_init(this->Loop, &this->Input.tty, 0, 1);
+    uv_tty_set_mode(&this->Input.tty, UV_TTY_MODE_NORMAL);
+    this->Input.tty.data = this;
+    InputStream = reinterpret_cast<uv_stream_t*>(&this->Input.tty);
+
+    uv_tty_init(this->Loop, &this->Output.tty, 1, 0);
+    uv_tty_set_mode(&this->Output.tty, UV_TTY_MODE_NORMAL);
+    this->Output.tty.data = this;
+    OutputStream = reinterpret_cast<uv_stream_t*>(&this->Output.tty);
+  } else {
+    uv_pipe_init(this->Loop, &this->Input.pipe, 0);
+    uv_pipe_open(&this->Input.pipe, 0);
+    this->Input.pipe.data = this;
+    InputStream = reinterpret_cast<uv_stream_t*>(&this->Input.pipe);
+
+    uv_pipe_init(this->Loop, &this->Output.pipe, 0);
+    uv_pipe_open(&this->Output.pipe, 1);
+    this->Output.pipe.data = this;
+    OutputStream = reinterpret_cast<uv_stream_t*>(&this->Output.pipe);
+  }
 
   Json::Value hello = Json::objectValue;
   hello[TYPE_KEY] = "hello";
