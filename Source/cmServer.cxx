@@ -31,6 +31,9 @@ const char ERROR_TYPE[] = "error";
 const char REPLY_TYPE[] = "reply";
 const char PROGRESS_TYPE[] = "progress";
 
+const char START_MAGIC[] = "[== CMake Server ==[";
+const char END_MAGIC[] = "]== CMake Server ==]";
+
 typedef struct
 {
   uv_write_t req;
@@ -170,11 +173,11 @@ void cmServer::handleData(const std::string& data)
       line.erase(ls - 1, 1);
     this->DataBuffer.erase(this->DataBuffer.begin(),
                            this->DataBuffer.begin() + needle + 1);
-    if (line == "[== CMake MetaMagic ==[") {
+    if (line == START_MAGIC) {
       this->JsonData.clear();
       continue;
     }
-    if (line == "]== CMake MetaMagic ==]") {
+    if (line == END_MAGIC) {
       this->Queue.push_back(this->JsonData);
       this->JsonData.clear();
       if (!this->Writing) {
@@ -272,9 +275,9 @@ void cmServer::WriteJsonObject(const Json::Value& jsonValue)
 {
   Json::FastWriter writer;
 
-  std::string result = "\n[== CMake MetaMagic ==[\n";
-  result += writer.write(jsonValue);
-  result += "]== CMake MetaMagic ==]\n";
+  std::string result = std::string("\n") + std::string(START_MAGIC) +
+    std::string("\n") + writer.write(jsonValue) + std::string(END_MAGIC) +
+    std::string("\n");
 
   this->Writing = true;
   write_data(this->OutputStream, result, on_stdout_write);
