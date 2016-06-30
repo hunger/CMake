@@ -87,6 +87,7 @@ void CMakeCommandUsage(const char* program)
     << "  time command [args...]    - run command and return elapsed time\n"
     << "  touch file                - touch a file.\n"
     << "  touch_nocreate file       - touch a file but do not create it.\n"
+    << "  capabilities              - Report capabilities built into cmake in JSON format.\n"
 #if defined(_WIN32) && !defined(__CYGWIN__)
     << "Available on Windows only:\n"
     << "  delete_regv key           - delete registry value\n"
@@ -508,6 +509,15 @@ int cmcmd::ExecuteCMakeCommand(std::vector<std::string>& args)
           return 1;
         }
       }
+      return 0;
+    }
+    // capabilities
+    else if (args[1] == "capabilities") {
+      if (args.size() > 2) {
+        return 1;
+      }
+      cmake cm;
+      std::cout << cm.ReportCapabilities();
       return 0;
     }
 
