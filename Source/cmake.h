@@ -16,13 +16,12 @@
 #include "cmStandardIncludes.h"
 
 #include "cmCacheManager.h"
+#include "cmGlobalGenerator.h"
 #include "cmInstalledFile.h"
 #include "cmListFileCache.h"
 #include "cmState.h"
 #include "cmSystemTools.h"
 
-class cmGlobalGeneratorFactory;
-class cmGlobalGenerator;
 class cmLocalGenerator;
 class cmMakefile;
 class cmVariableWatch;
@@ -420,9 +419,8 @@ protected:
     *CreateExtraGeneratorFunctionType)();
   typedef std::map<std::string, CreateExtraGeneratorFunctionType>
     RegisteredExtraGeneratorsMap;
-  typedef std::vector<cmGlobalGeneratorFactory*> RegisteredGeneratorsVector;
-  RegisteredGeneratorsVector Generators;
   RegisteredExtraGeneratorsMap ExtraGenerators;
+  std::vector<cmGlobalGenerator::Information *> Generators;
   void AddDefaultCommands();
   void AddDefaultGenerators();
   void AddDefaultExtraGenerators();

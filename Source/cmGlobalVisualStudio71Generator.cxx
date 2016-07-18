@@ -281,9 +281,12 @@ void cmGlobalVisualStudio71Generator::WriteSLNHeader(std::ostream& fout)
   fout << "Microsoft Visual Studio Solution File, Format Version 8.00\n";
 }
 
-void cmGlobalVisualStudio71Generator::GetDocumentation(
-  cmDocumentationEntry& entry)
+cmGlobalGenerator::Information*cmGlobalVisualStudio71Generator::GetInformation()
 {
-  entry.Name = cmGlobalVisualStudio71Generator::GetActualName();
-  entry.Brief = "Deprecated. Generates Visual Studio .NET 2003 project files.";
+    static cmGlobalGenerator::Information info("Visual Studio 7 .NET 2003", "",
+                                               "Deprecated. Generates Visual Studio .NET 2003 project files.",
+                                               false, false,
+                                               cmGlobalGenerator::Information::CreateGenerator<cmGlobalVisualStudio71Generator>);
+
+    return &info;
 }

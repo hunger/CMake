@@ -23,19 +23,14 @@ class cmGlobalWatcomWMakeGenerator : public cmGlobalUnixMakefileGenerator3
 {
 public:
   cmGlobalWatcomWMakeGenerator(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<cmGlobalWatcomWMakeGenerator>();
-  }
+
+  static cmGlobalGenerator::Information* GetInformation();
+
   ///! Get the name for the generator.
   std::string GetName() const CM_OVERRIDE
   {
-    return cmGlobalWatcomWMakeGenerator::GetActualName();
+    return GetInformation()->FullName;
   }
-  static std::string GetActualName() { return "Watcom WMake"; }
-
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
 
   /**
    * Try to determine system information such as shared library

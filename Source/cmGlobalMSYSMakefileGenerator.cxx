@@ -92,3 +92,13 @@ void cmGlobalMSYSMakefileGenerator::GetDocumentation(
   entry.Name = cmGlobalMSYSMakefileGenerator::GetActualName();
   entry.Brief = "Generates MSYS makefiles.";
 }
+
+cmGlobalGenerator::Information*cmGlobalMSYSMakefileGenerator::GetInformation()
+{
+    cmGlobalGenerator::Information info("MSYS Makefiles", "",
+                                        "Generates MSYS makefiles.",
+                                        false, false,
+                                        cmGlobalGenerator::Information::CreateGenerator<cmGlobalMSYSMakefileGenerator>);
+
+    return &info;
+}

@@ -15,7 +15,6 @@
 
 #include "cmGlobalCommonGenerator.h"
 
-#include "cmGlobalGeneratorFactory.h"
 #include "cmNinjaTypes.h"
 
 //#define NINJA_GEN_VERBOSE_FILES
@@ -162,10 +161,7 @@ public:
 public:
   cmGlobalNinjaGenerator(cmake* cm);
 
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<cmGlobalNinjaGenerator>();
-  }
+  static Information* GetInformation();
 
   ~cmGlobalNinjaGenerator() CM_OVERRIDE {}
 
@@ -173,12 +169,8 @@ public:
 
   std::string GetName() const CM_OVERRIDE
   {
-    return cmGlobalNinjaGenerator::GetActualName();
+    return GetInformation()->FullName;
   }
-
-  static std::string GetActualName() { return "Ninja"; }
-
-  static void GetDocumentation(cmDocumentationEntry& entry);
 
   void EnableLanguage(std::vector<std::string> const& languages,
                       cmMakefile* mf, bool optional) CM_OVERRIDE;

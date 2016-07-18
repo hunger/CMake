@@ -40,13 +40,6 @@ cmLocalGenerator* cmGlobalGhsMultiGenerator::CreateLocalGenerator(
   return new cmLocalGhsMultiGenerator(this, mf);
 }
 
-void cmGlobalGhsMultiGenerator::GetDocumentation(cmDocumentationEntry& entry)
-{
-  entry.Name = GetActualName();
-  entry.Brief =
-    "Generates Green Hills MULTI files (experimental, work-in-progress).";
-}
-
 void cmGlobalGhsMultiGenerator::EnableLanguage(
   std::vector<std::string> const& l, cmMakefile* mf, bool optional)
 {
@@ -496,4 +489,14 @@ std::string cmGlobalGhsMultiGenerator::trimQuotes(std::string const& str)
     }
   }
   return result;
+}
+
+cmGlobalGenerator::Information*cmGlobalGhsMultiGenerator::GetInformation()
+{
+    cmGlobalGenerator::Information info("Green Hills MULTI", "",
+                                        "Generates Green Hills MULTI files (experimental, work-in-progress).",
+                                        false, false,
+                                        cmGlobalGenerator::Information::CreateGenerator<cmGlobalGhsMultiGenerator>);
+
+    return &info;
 }

@@ -23,20 +23,11 @@ class cmGlobalNMakeMakefileGenerator : public cmGlobalUnixMakefileGenerator3
 {
 public:
   cmGlobalNMakeMakefileGenerator(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<
-      cmGlobalNMakeMakefileGenerator>();
-  }
-  ///! Get the name for the generator.
-  virtual std::string GetName() const
-  {
-    return cmGlobalNMakeMakefileGenerator::GetActualName();
-  }
-  static std::string GetActualName() { return "NMake Makefiles"; }
 
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
+  static cmGlobalGenerator::Information *GetInformation();
+
+  ///! Get the name for the generator.
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /**
    * Try to determine system information such as shared library

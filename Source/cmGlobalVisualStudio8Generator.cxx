@@ -103,7 +103,12 @@ cmGlobalVisualStudio8Generator::cmGlobalVisualStudio8Generator(
   this->ExpressEdition = cmSystemTools::ReadRegistryValue(
     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VCExpress\\8.0\\Setup\\VC;"
     "ProductDir",
-    vc8Express, cmSystemTools::KeyWOW64_32);
+              vc8Express, cmSystemTools::KeyWOW64_32);
+}
+
+cmGlobalGenerator::Information* cmGlobalVisualStudio8Generator::GetInformation()
+{
+    static cmGlobalGenerator::Information info();
 }
 
 std::string cmGlobalVisualStudio8Generator::FindDevEnvCommand()

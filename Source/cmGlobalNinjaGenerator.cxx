@@ -460,17 +460,18 @@ cmGlobalNinjaGenerator::cmGlobalNinjaGenerator(cmake* cm)
   this->FindMakeProgramFile = "CMakeNinjaFindMake.cmake";
 }
 
+cmGlobalGenerator::Information*cmGlobalNinjaGenerator::GetInformation()
+{
+  static cmGlobalGenerator::Information info("Ninja", "", "Generates build.ninja files.", false, false,
+                                             cmGlobalGenerator::Information::CreateGenerator<cmGlobalNinjaGenerator>);
+  return &info;
+}
+
 // Virtual public methods.
 
 cmLocalGenerator* cmGlobalNinjaGenerator::CreateLocalGenerator(cmMakefile* mf)
 {
   return new cmLocalNinjaGenerator(this, mf);
-}
-
-void cmGlobalNinjaGenerator::GetDocumentation(cmDocumentationEntry& entry)
-{
-  entry.Name = cmGlobalNinjaGenerator::GetActualName();
-  entry.Brief = "Generates build.ninja files.";
 }
 
 // Implemented in all cmGlobaleGenerator sub-classes.

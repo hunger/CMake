@@ -14,8 +14,6 @@
 
 #include "cmGlobalCommonGenerator.h"
 
-#include "cmGlobalGeneratorFactory.h"
-
 class cmGeneratedFileStream;
 class cmMakefileTargetGenerator;
 class cmLocalUnixMakefileGenerator3;
@@ -56,33 +54,10 @@ class cmGlobalUnixMakefileGenerator3 : public cmGlobalCommonGenerator
 {
 public:
   cmGlobalUnixMakefileGenerator3(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<
-      cmGlobalUnixMakefileGenerator3>();
-  }
+  static Information* GetInformation();
 
   ///! Get the name for the generator.
-  std::string GetName() const CM_OVERRIDE
-  {
-    return cmGlobalUnixMakefileGenerator3::GetActualName();
-  }
-  static std::string GetActualName() { return "Unix Makefiles"; }
-
-  /**
-   * Utilized by the generator factory to determine if this generator
-   * supports toolsets.
-   */
-  static bool SupportsToolset() { return false; }
-
-  /**
-   * Utilized by the generator factory to determine if this generator
-   * supports platforms.
-   */
-  static bool SupportsPlatform() { return false; }
-
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
+  std::string GetName() const CM_OVERRIDE { return GetInformation()->FullName; }
 
   cmLocalGenerator* CreateLocalGenerator(cmMakefile* mf) CM_OVERRIDE;
 

@@ -49,6 +49,22 @@
 
 #include <assert.h>
 
+cmGlobalGenerator::Information::Information(const std::string& base,
+                                            const std::string& extra,
+                                            const std::string& brief,
+                                            bool ts, bool sp,
+                                            cmGlobalGenerator::CreateGlobalGeneratorFunctionType fac) :
+  BaseName(base), ExtraName(extra), Documentation(brief), SupportsToolset(ts), SupportsPlatform(sp), factory(fac)
+{
+  FullName = cmExternalMakefileProjectGenerator::CreateFullGeneratorName(BaseName, ExtraName);
+}
+
+void cmGlobalGenerator::Information::GetDocumentation(cmDocumentationEntry& entry)
+{
+  entry.Name = FullName;
+  entry.Brief = Documentation;
+}
+
 bool cmTarget::StrictTargetComparison::operator()(cmTarget const* t1,
                                                   cmTarget const* t2) const
 {

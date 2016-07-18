@@ -16,7 +16,6 @@
 #include "cmCustomCommandGenerator.h"
 #include "cmGeneratedFileStream.h"
 #include "cmGeneratorTarget.h"
-#include "cmGlobalGeneratorFactory.h"
 #include "cmLocalXCodeGenerator.h"
 #include "cmMakefile.h"
 #include "cmSourceFile.h"
@@ -105,26 +104,6 @@ public:
   }
 };
 
-class cmGlobalXCodeGenerator::Factory : public cmGlobalGeneratorFactory
-{
-public:
-  cmGlobalGenerator* CreateGlobalGenerator(const std::string& name,
-                                           cmake* cm) const CM_OVERRIDE;
-
-  void GetDocumentation(cmDocumentationEntry& entry) const CM_OVERRIDE
-  {
-    cmGlobalXCodeGenerator::GetDocumentation(entry);
-  }
-
-  void GetGenerators(std::vector<std::string>& names) const CM_OVERRIDE
-  {
-    names.push_back(cmGlobalXCodeGenerator::GetActualName());
-  }
-
-  bool SupportsToolset() const CM_OVERRIDE { return true; }
-  bool SupportsPlatform() const CM_OVERRIDE { return false; }
-};
-
 cmGlobalXCodeGenerator::cmGlobalXCodeGenerator(cmake* cm,
                                                std::string const& version)
   : cmGlobalGenerator(cm)
@@ -145,16 +124,9 @@ cmGlobalXCodeGenerator::cmGlobalXCodeGenerator(cmake* cm,
   this->XcodeBuildCommandInitialized = false;
 }
 
-cmGlobalGeneratorFactory* cmGlobalXCodeGenerator::NewFactory()
+cmGlobalGenerator* cmGlobalXCodeGenerator::CreateGlobalGenerator(
+  cmake* cm) const
 {
-  return new Factory;
-}
-
-cmGlobalGenerator* cmGlobalXCodeGenerator::Factory::CreateGlobalGenerator(
-  const std::string& name, cmake* cm) const
-{
-  if (name != GetActualName())
-    return 0;
 #if defined(CMAKE_BUILD_WITH_CMAKE)
   cmXcodeVersionParser parser;
   std::string versionFile;
@@ -3488,4 +3460,12 @@ void cmGlobalXCodeGenerator::ComputeTargetObjectDirectory(
 #endif
   }
   gt->ObjectDirectory = dir;
+}
+
+cmGlobalGenerator::Information*cmGlobalXCodeGenerator::GetInformation()
+{
+    static cmGlobalGenerator::Information info("Xcode", "",
+                                               "Generate Xcode project files.",
+                                               true, false,
+                                               CreateGlobalGenerator);
 }

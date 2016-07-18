@@ -23,21 +23,11 @@ class cmGlobalJOMMakefileGenerator : public cmGlobalUnixMakefileGenerator3
 {
 public:
   cmGlobalJOMMakefileGenerator(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<cmGlobalJOMMakefileGenerator>();
-  }
-  ///! Get the name for the generator.
-  virtual std::string GetName() const
-  {
-    return cmGlobalJOMMakefileGenerator::GetActualName();
-  }
-  // use NMake Makefiles in the name so that scripts/tests that depend on the
-  // name NMake Makefiles will work
-  static std::string GetActualName() { return "NMake Makefiles JOM"; }
 
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
+  static cmGlobalGenerator::Information *GetInformation();
+
+  ///! Get the name for the generator.
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /**
    * Try to determine system information such as shared library

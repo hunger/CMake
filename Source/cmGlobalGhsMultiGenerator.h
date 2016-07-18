@@ -15,7 +15,6 @@
 #include "cmGlobalGenerator.h"
 
 #include "cmGhsMultiGpj.h"
-#include "cmGlobalGeneratorFactory.h"
 
 class cmGeneratedFileStream;
 
@@ -28,34 +27,13 @@ public:
   cmGlobalGhsMultiGenerator(cmake* cm);
   ~cmGlobalGhsMultiGenerator();
 
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<cmGlobalGhsMultiGenerator>();
-  }
+  static cmGlobalGenerator::Information *GetInformation();
 
   ///! create the correct local generator
   virtual cmLocalGenerator* CreateLocalGenerator(cmMakefile* mf);
 
-  /// @return the name of this generator.
-  static std::string GetActualName() { return "Green Hills MULTI"; }
-
   ///! Get the name for this generator
-  virtual std::string GetName() const { return this->GetActualName(); }
-
-  /// Overloaded methods. @see cmGlobalGenerator::GetDocumentation()
-  static void GetDocumentation(cmDocumentationEntry& entry);
-
-  /**
-   * Utilized by the generator factory to determine if this generator
-   * supports toolsets.
-   */
-  static bool SupportsToolset() { return false; }
-
-  /**
-   * Utilized by the generator factory to determine if this generator
-   * supports platforms.
-   */
-  static bool SupportsPlatform() { return false; }
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /**
   * Try to determine system information such as shared library

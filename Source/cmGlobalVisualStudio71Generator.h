@@ -24,21 +24,10 @@ class cmGlobalVisualStudio71Generator : public cmGlobalVisualStudio7Generator
 public:
   cmGlobalVisualStudio71Generator(cmake* cm,
                                   const std::string& platformName = "");
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<
-      cmGlobalVisualStudio71Generator>();
-  }
+  static cmGlobalGenerator::Information *GetInformation();
 
   ///! Get the name for the generator.
-  virtual std::string GetName() const
-  {
-    return cmGlobalVisualStudio71Generator::GetActualName();
-  }
-  static std::string GetActualName() { return "Visual Studio 7 .NET 2003"; }
-
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /**
    * Where does this version of Visual Studio look for macros for the

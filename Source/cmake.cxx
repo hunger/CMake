@@ -189,11 +189,8 @@ cmake::cmake()
 cmake::~cmake()
 {
   delete this->State;
-  if (this->GlobalGenerator) {
-    delete this->GlobalGenerator;
-    this->GlobalGenerator = CM_NULLPTR;
-  }
-  cmDeleteAll(this->Generators);
+  delete this->GlobalGenerator;
+  this->GlobalGenerator = CM_NULLPTR;
 #ifdef CMAKE_BUILD_WITH_CMAKE
   delete this->VariableWatch;
 #endif
@@ -844,19 +841,13 @@ void cmake::AddDefaultExtraGenerators()
 
 void cmake::GetRegisteredGenerators(std::vector<GeneratorInfo>& generators)
 {
-  for (RegisteredGeneratorsVector::const_iterator i = this->Generators.begin(),
+  for (std::vector<cmGlobalGenerator::Information *>::const_iterator i = this->Generators.begin(),
                                                   e = this->Generators.end();
        i != e; ++i) {
-    std::vector<std::string> names;
-    (*i)->GetGenerators(names);
-
-    for (size_t j = 0; j < names.size(); ++j) {
-      GeneratorInfo info;
-      info.supportsToolset = (*i)->SupportsToolset();
-      info.supportsPlatform = (*i)->SupportsPlatform();
-      info.name = names[j];
-      generators.push_back(info);
-    }
+    GeneratorInfo info;
+    info.supportsToolset = (*i)->SupportsToolset;
+    info.supportsPlatform = (*i)->SupportsPlatform;
+    info.name = (*i)->FullName;
   }
 
   for (RegisteredExtraGeneratorsMap::const_iterator
@@ -873,31 +864,17 @@ void cmake::GetRegisteredGenerators(std::vector<GeneratorInfo>& generators)
 
 cmGlobalGenerator* cmake::CreateGlobalGenerator(const std::string& gname)
 {
-  cmExternalMakefileProjectGenerator* extraGenerator = CM_NULLPTR;
-  std::string name = gname;
-  RegisteredExtraGeneratorsMap::const_iterator extraGenIt =
-    this->ExtraGenerators.find(name);
-  if (extraGenIt != this->ExtraGenerators.end()) {
-    extraGenerator = (extraGenIt->second)();
-    name = extraGenerator->GetGlobalGeneratorName(name);
-  }
-
-  cmGlobalGenerator* generator = CM_NULLPTR;
-  for (RegisteredGeneratorsVector::const_iterator i = this->Generators.begin();
+  cmGlobalGenerator::Information *info = CM_NULLPTR;
+  for (std::vector<cmGlobalGenerator::Information *>::const_iterator i = this->Generators.begin();
        i != this->Generators.end(); ++i) {
-    generator = (*i)->CreateGlobalGenerator(name, this);
-    if (generator) {
-      break;
+    if ((*i)->FullName != gname) {
+      continue;
     }
+    info = *i;
+    break;
   }
 
-  if (generator) {
-    generator->SetExternalMakefileProjectGenerator(extraGenerator);
-  } else {
-    delete extraGenerator;
-  }
-
-  return generator;
+  return info ? info->factory(this) : CM_NULLPTR;
 }
 
 void cmake::SetHomeDirectory(const std::string& dir)
@@ -1529,30 +1506,30 @@ void cmake::AddDefaultGenerators()
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #if !defined(CMAKE_BOOT_MINGW)
-  this->Generators.push_back(cmGlobalVisualStudio14Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio12Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio11Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio10Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio9Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio8Generator::NewFactory());
-  this->Generators.push_back(cmGlobalVisualStudio71Generator::NewFactory());
-  this->Generators.push_back(cmGlobalBorlandMakefileGenerator::NewFactory());
-  this->Generators.push_back(cmGlobalNMakeMakefileGenerator::NewFactory());
-  this->Generators.push_back(cmGlobalJOMMakefileGenerator::NewFactory());
-  this->Generators.push_back(cmGlobalGhsMultiGenerator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio14Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio12Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio11Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio10Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio9Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio8Generator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalVisualStudio71Generator::NewFactory());
+  this->Generators.push_back(cmGlobalBorlandMakefileGenerator::GetInformation());
+  this->Generators.push_back(cmGlobalNMakeMakefileGenerator::GetInformation());
+  this->Generators.push_back(cmGlobalJOMMakefileGenerator::GetInformation());
+  this->Generators.push_back(cmGlobalGhsMultiGenerator::GetInformation());
 #endif
-  this->Generators.push_back(cmGlobalMSYSMakefileGenerator::NewFactory());
-  this->Generators.push_back(cmGlobalMinGWMakefileGenerator::NewFactory());
+  this->Generators.push_back(cmGlobalMSYSMakefileGenerator::GetInformation());
+  this->Generators.push_back(cmGlobalMinGWMakefileGenerator::GetInformation());
 #endif
-  this->Generators.push_back(cmGlobalUnixMakefileGenerator3::NewFactory());
+  this->Generators.push_back(cmGlobalUnixMakefileGenerator3::GetInformation());
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-  this->Generators.push_back(cmGlobalNinjaGenerator::NewFactory());
+  this->Generators.push_back(cmGlobalNinjaGenerator::GetInformation());
 #endif
 #if defined(CMAKE_USE_WMAKE)
-  this->Generators.push_back(cmGlobalWatcomWMakeGenerator::NewFactory());
+  this->Generators.push_back(cmGlobalWatcomWMakeGenerator::GetInformation());
 #endif
 #ifdef CMAKE_USE_XCODE
-  this->Generators.push_back(cmGlobalXCodeGenerator::NewFactory());
+  this->ObsoleteGenerators.push_back(cmGlobalXCodeGenerator::NewFactory());
 #endif
 }
 
@@ -1650,7 +1627,7 @@ void cmake::SetIsInTryCompile(bool b)
 
 void cmake::GetGeneratorDocumentation(std::vector<cmDocumentationEntry>& v)
 {
-  for (RegisteredGeneratorsVector::const_iterator i = this->Generators.begin();
+  for (std::vector<cmGlobalGenerator::Information *>::const_iterator i = this->Generators.begin();
        i != this->Generators.end(); ++i) {
     cmDocumentationEntry e;
     (*i)->GetDocumentation(e);

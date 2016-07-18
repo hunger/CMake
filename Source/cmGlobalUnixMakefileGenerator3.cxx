@@ -40,8 +40,15 @@ cmGlobalUnixMakefileGenerator3::cmGlobalUnixMakefileGenerator3(cmake* cm)
   this->UnixCD = true;
 }
 
+cmGlobalGenerator::Information*cmGlobalUnixMakefileGenerator3::GetInformation() {
+  static Information info("Unix Makefiles", "",
+                          "Generates standard UNIX makefiles.", false, false,
+                          cmGlobalGenerator::Information::CreateGenerator<cmGlobalUnixMakefileGenerator3>);
+  return &info;
+}
+
 void cmGlobalUnixMakefileGenerator3::EnableLanguage(
-  std::vector<std::string> const& languages, cmMakefile* mf, bool optional)
+    std::vector<std::string> const& languages, cmMakefile* mf, bool optional)
 {
   this->cmGlobalGenerator::EnableLanguage(languages, mf, optional);
   for (std::vector<std::string>::const_iterator l = languages.begin();
@@ -58,13 +65,6 @@ cmLocalGenerator* cmGlobalUnixMakefileGenerator3::CreateLocalGenerator(
   cmMakefile* mf)
 {
   return new cmLocalUnixMakefileGenerator3(this, mf);
-}
-
-void cmGlobalUnixMakefileGenerator3::GetDocumentation(
-  cmDocumentationEntry& entry)
-{
-  entry.Name = cmGlobalUnixMakefileGenerator3::GetActualName();
-  entry.Brief = "Generates standard UNIX makefiles.";
 }
 
 std::string cmGlobalUnixMakefileGenerator3::GetEditCacheCommand() const

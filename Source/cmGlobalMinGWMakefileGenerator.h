@@ -23,20 +23,11 @@ class cmGlobalMinGWMakefileGenerator : public cmGlobalUnixMakefileGenerator3
 {
 public:
   cmGlobalMinGWMakefileGenerator(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<
-      cmGlobalMinGWMakefileGenerator>();
-  }
-  ///! Get the name for the generator.
-  virtual std::string GetName() const
-  {
-    return cmGlobalMinGWMakefileGenerator::GetActualName();
-  }
-  static std::string GetActualName() { return "MinGW Makefiles"; }
 
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
+  static cmGlobalGenerator::Information *GetInformation();
+
+  ///! Get the name for the generator.
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /**
    * Try to determine system information such as shared library

@@ -51,6 +51,29 @@ class cmExportBuildFileGenerator;
 class cmGlobalGenerator
 {
 public:
+  typedef cmGlobalGenerator* (*CreateGlobalGeneratorFunctionType)(cmake *);
+  class Information {
+  public:
+    Information(const std::string &base, const std::string &extra, const std::string &brief,
+                bool ts, bool sp, CreateGlobalGeneratorFunctionType fac);
+
+    void GetDocumentation(cmDocumentationEntry &entry);
+
+    template<class T>
+    static cmGlobalGenerator* CreateGenerator(cmake *cm) { return new T(cm); }
+
+    std::string BaseName;
+    std::string ExtraName;
+    std::string FullName;
+
+    std::string Documentation;
+
+    bool SupportsToolset;
+    bool SupportsPlatform;
+
+    CreateGlobalGeneratorFunctionType factory;
+  };
+
   ///! Free any memory allocated with the GlobalGenerator
   cmGlobalGenerator(cmake* cm);
   virtual ~cmGlobalGenerator();

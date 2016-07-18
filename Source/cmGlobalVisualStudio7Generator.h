@@ -14,8 +14,6 @@
 
 #include "cmGlobalVisualStudioGenerator.h"
 
-#include "cmGlobalGeneratorFactory.h"
-
 class cmTarget;
 struct cmIDEFlagTable;
 

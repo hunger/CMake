@@ -23,17 +23,11 @@ class cmGlobalMSYSMakefileGenerator : public cmGlobalUnixMakefileGenerator3
 {
 public:
   cmGlobalMSYSMakefileGenerator(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
-  {
-    return new cmGlobalGeneratorSimpleFactory<cmGlobalMSYSMakefileGenerator>();
-  }
+
+  static cmGlobalGenerator::Information *GetInformation();
 
   ///! Get the name for the generator.
-  virtual std::string GetName() const
-  {
-    return cmGlobalMSYSMakefileGenerator::GetActualName();
-  }
-  static std::string GetActualName() { return "MSYS Makefiles"; }
+  virtual std::string GetName() const { return GetInformation()->FullName; }
 
   /** Get the documentation entry for this generator.  */
   static void GetDocumentation(cmDocumentationEntry& entry);

@@ -55,9 +55,12 @@ void cmGlobalMinGWMakefileGenerator::EnableLanguage(
   this->cmGlobalUnixMakefileGenerator3::EnableLanguage(l, mf, optional);
 }
 
-void cmGlobalMinGWMakefileGenerator::GetDocumentation(
-  cmDocumentationEntry& entry)
+cmGlobalGenerator::Information*cmGlobalMinGWMakefileGenerator::GetInformation()
 {
-  entry.Name = cmGlobalMinGWMakefileGenerator::GetActualName();
-  entry.Brief = "Generates a make file for use with mingw32-make.";
+    cmGlobalGenerator::Information info("MinGW Makefiles", "",
+                                        "Generates a make file for use with mingw32-make.",
+                                        false, false,
+                                        cmGlobalGenerator::Information::CreateGenerator<cmGlobalMinGWMakefileGenerator>);
+
+    return &info;
 }

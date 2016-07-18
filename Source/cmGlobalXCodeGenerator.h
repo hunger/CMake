@@ -16,7 +16,6 @@
 
 #include "cmCustomCommand.h"
 #include "cmXCodeObject.h"
-class cmGlobalGeneratorFactory;
 class cmSourceFile;
 class cmSourceGroup;
 
@@ -29,17 +28,14 @@ class cmGlobalXCodeGenerator : public cmGlobalGenerator
 {
 public:
   cmGlobalXCodeGenerator(cmake* cm, std::string const& version);
-  static cmGlobalGeneratorFactory* NewFactory();
+  static cmGlobalGenerator::Information *GetInformation();
+  static cmGlobalGenerator* CreateGlobalGenerator(const std::string& name, cmake* cm);
 
   ///! Get the name for the generator.
   virtual std::string GetName() const
   {
-    return cmGlobalXCodeGenerator::GetActualName();
+    return GetInformation()->FullName;
   }
-  static std::string GetActualName() { return "Xcode"; }
-
-  /** Get the documentation entry for this generator.  */
-  static void GetDocumentation(cmDocumentationEntry& entry);
 
   ///! Create a local generator appropriate to this Global Generator
   virtual cmLocalGenerator* CreateLocalGenerator(cmMakefile* mf);
