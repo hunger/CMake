@@ -25,20 +25,23 @@
 #include <cmsys/FStream.hxx>
 #include <cmsys/SystemTools.hxx>
 
-void cmGlobalKdevelopGenerator::GetDocumentation(cmDocumentationEntry& entry,
-                                                 const std::string&) const
-{
-  entry.Name = this->GetName();
-  entry.Brief = "Generates KDevelop 3 project files.";
-}
-
 cmGlobalKdevelopGenerator::cmGlobalKdevelopGenerator()
   : cmExternalMakefileProjectGenerator()
+{ }
+
+cmExternalMakefileProjectGeneratorFactory *cmGlobalKdevelopGenerator::NewFactory()
 {
-  this->SupportedGlobalGenerators.push_back("Unix Makefiles");
+  static cmExternalMakefileProjectGeneratorSimpleFactory<cmGlobalKdevelopGenerator> factory("KDevelop3",
+                                                                                            "Generates KDevelop 3 project files.");
+
+  if (factory.GetSupportedGlobalGenerators().empty()) {
+    factory.AddSupportedGlobalGenerator("Unix Makefiles");
 #ifdef CMAKE_USE_NINJA
-  this->SupportedGlobalGenerators.push_back("Ninja");
+    factory.AddSupportedGlobalGenerator("Ninja");
 #endif
+  }
+
+  return &factory;
 }
 
 void cmGlobalKdevelopGenerator::Generate()

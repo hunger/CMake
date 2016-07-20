@@ -2413,10 +2413,9 @@ void cmGlobalGenerator::SetExternalMakefileProjectGenerator(
   }
 }
 
-std::string cmGlobalGenerator::GetExtraGeneratorName() const
+bool cmGlobalGenerator::HasExternalMakefileProjectGenerator() const
 {
-  return this->ExtraGenerator ? this->ExtraGenerator->GetName()
-                              : std::string();
+    return this->ExtraGenerator;
 }
 
 void cmGlobalGenerator::FileReplacedDuringGenerate(const std::string& filename)

@@ -189,7 +189,7 @@ public:
   void SetExternalMakefileProjectGenerator(
     cmExternalMakefileProjectGenerator* extraGenerator);
 
-  std::string GetExtraGeneratorName() const;
+  bool HasExternalMakefileProjectGenerator() const;
 
   void AddInstallComponent(const char* component);
 

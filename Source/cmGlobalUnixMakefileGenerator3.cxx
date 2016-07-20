@@ -37,7 +37,7 @@ cmGlobalUnixMakefileGenerator3::cmGlobalUnixMakefileGenerator3(cmake* cm)
   this->IncludeDirective = "include";
   this->DefineWindowsNULL = false;
   this->PassMakeflags = false;
-  this->UnixCD = true;
+    this->UnixCD = true;
 }
 
 void cmGlobalUnixMakefileGenerator3::EnableLanguage(
@@ -71,7 +71,7 @@ std::string cmGlobalUnixMakefileGenerator3::GetEditCacheCommand() const
 {
   // If generating for an extra IDE, the edit_cache target cannot
   // launch a terminal-interactive tool, so always use cmake-gui.
-  if (!this->GetExtraGeneratorName().empty()) {
+  if (this->HasExternalMakefileProjectGenerator()) {
     return cmSystemTools::GetCMakeGUICommand();
   }
 

@@ -793,8 +793,7 @@ int cmake::AddCMakePaths()
   return 1;
 }
 
-void cmake::AddExtraGenerator(const std::string& name,
-                              CreateExtraGeneratorFunctionType newFunction)
+void cmake::AddExtraGenerator(cmExternalMakefileProjectGeneratorFactory *factory)
 {
   cmExternalMakefileProjectGenerator* extraGenerator = newFunction();
   const std::vector<std::string>& supportedGlobalGenerators =
@@ -804,7 +803,7 @@ void cmake::AddExtraGenerator(const std::string& name,
          supportedGlobalGenerators.begin();
        it != supportedGlobalGenerators.end(); ++it) {
     std::string fullName =
-      cmExternalMakefileProjectGenerator::CreateFullGeneratorName(*it, name);
+      cmExternalMakefileProjectGenerator::CreateFullGeneratorName(*it, factory);
     this->ExtraGenerators[fullName] = newFunction;
   }
   delete extraGenerator;
