@@ -19,6 +19,7 @@ const char CODE_MODEL_TYPE[] = "codemodel";
 const char COMPUTE_TYPE[] = "compute";
 const char CONFIGURE_TYPE[] = "configure";
 const char ERROR_TYPE[] = "error";
+const char FILESYSTEM_WATCHERS_TYPE[] = "fileSystemWatchers";
 const char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 const char MESSAGE_TYPE[] = "message";
 const char PROGRESS_TYPE[] = "progress";
@@ -74,5 +75,7 @@ const char VALUE_KEY[] = "value";
 const char WARN_UNINITIALIZED_KEY[] = "warnUninitialized";
 const char WARN_UNUSED_CLI_KEY[] = "warnUnusedCli";
 const char WARN_UNUSED_KEY[] = "warnUnused";
+const char WATCHED_DIRECTORIES_KEY[] = "watchedDirectories";
+const char WATCHED_FILES_KEY[] = "watchedFiles";
 
 } // namespace
