@@ -13,6 +13,7 @@
 namespace {
 // Vocabulary:
 
+const char CACHE_TYPE[] = "cache";
 const char CMAKE_INPUTS_TYPE[] = "cmakeInputs";
 const char CODE_MODEL_TYPE[] = "codemodel";
 const char COMPUTE_TYPE[] = "compute";
@@ -29,6 +30,7 @@ const char ARTIFACTS_KEY[] = "artifacts";
 const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
 const char BUILD_FILES_KEY[] = "buildFiles";
 const char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
+const char CACHE_KEY[] = "cache";
 const char CAPABILITIES_KEY[] = "capabilities";
 const char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
 const char CMAKE_ROOT_DIRECTORY_KEY[] = "cmakeRootDirectory";
@@ -48,6 +50,8 @@ const char IS_CMAKE_KEY[] = "isCMake";
 const char IS_GENERATED_KEY[] = "isGenerated";
 const char IS_SYSTEM_KEY[] = "isSystem";
 const char IS_TEMPORARY_KEY[] = "isTemporary";
+const char KEY_KEY[] = "key";
+const char KEYS_KEY[] = "keys";
 const char LANGUAGE_KEY[] = "language";
 const char LINKER_LANGUAGE_KEY[] = "linkerLanguage";
 const char LINK_FLAGS_KEY[] = "linkFlags";
@@ -57,6 +61,7 @@ const char LINK_PATH_KEY[] = "linkPath";
 const char NAME_KEY[] = "name";
 const char PATH_KEY[] = "path";
 const char PROJECTS_KEY[] = "projects";
+const char PROPERTIES_KEY[] = "properties";
 const char REPLY_TO_KEY[] = "inReplyTo";
 const char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
 const char SOURCES_KEY[] = "sources";
@@ -65,6 +70,7 @@ const char TARGETS_KEY[] = "targets";
 const char TRACE_EXPAND_KEY[] = "traceExpand";
 const char TRACE_KEY[] = "trace";
 const char TYPE_KEY[] = "type";
+const char VALUE_KEY[] = "value";
 const char WARN_UNINITIALIZED_KEY[] = "warnUninitialized";
 const char WARN_UNUSED_CLI_KEY[] = "warnUnusedCli";
 const char WARN_UNUSED_KEY[] = "warnUnused";
