@@ -13,6 +13,9 @@
 namespace {
 // Vocabulary:
 
+const char DIRTY_SIGNAL[] = "dirty";
+const char FILE_CHANGE_SIGNAL[] = "fileChange";
+
 const char CACHE_TYPE[] = "cache";
 const char CMAKE_INPUTS_TYPE[] = "cmakeInputs";
 const char CODE_MODEL_TYPE[] = "codemodel";
@@ -77,5 +80,8 @@ const char WARN_UNUSED_CLI_KEY[] = "warnUnusedCli";
 const char WARN_UNUSED_KEY[] = "warnUnused";
 const char WATCHED_DIRECTORIES_KEY[] = "watchedDirectories";
 const char WATCHED_FILES_KEY[] = "watchedFiles";
+
+const char RENAME_PROPERTY_VALUE[] = "rename";
+const char CHANGE_PROPERTY_VALUE[] = "change";
 
 } // namespace

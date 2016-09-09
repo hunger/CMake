@@ -121,6 +121,8 @@ private:
   bool DoActivate(const cmServerRequest& request,
                   std::string* errorMessage) override;
 
+  void HandleCMakeFileChanges(const std::string& path, int event, int status);
+
   // Handle requests:
   cmServerResponse ProcessCache(const cmServerRequest& request);
   cmServerResponse ProcessCMakeInputs(const cmServerRequest& request);
@@ -139,4 +141,6 @@ private:
     COMPUTED
   };
   State m_State = INACTIVE;
+
+  bool m_isDirty = false;
 };
