@@ -14,6 +14,7 @@
 #include "cmServer.h"
 
 #include "cmServerConnection.h"
+#include "cmServerDictionary.h"
 #include "cmServerProtocol.h"
 #include "cmSystemTools.h"
 #include "cmVersionMacros.h"
@@ -28,16 +29,6 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-
-const char TYPE_KEY[] = "type";
-const char COOKIE_KEY[] = "cookie";
-const char REPLY_TO_KEY[] = "inReplyTo";
-const char ERROR_MESSAGE_KEY[] = "errorMessage";
-
-const char ERROR_TYPE[] = "error";
-const char REPLY_TYPE[] = "reply";
-const char PROGRESS_TYPE[] = "progress";
-const char MESSAGE_TYPE[] = "message";
 
 const char START_MAGIC[] = "[== CMake Server ==[";
 const char END_MAGIC[] = "]== CMake Server ==]";
@@ -245,7 +236,8 @@ bool cmServer::Serve(std::string* errorMessage)
   return Connection->ProcessEvents(errorMessage);
 }
 
-void cmServer::WriteJsonObject(const Json::Value& jsonValue, const DebugInfo *debug) const
+void cmServer::WriteJsonObject(const Json::Value& jsonValue,
+                               const DebugInfo* debug) const
 {
   Json::FastWriter writer;
 
@@ -352,7 +344,8 @@ void cmServer::WriteParseError(const std::string& message) const
   this->WriteJsonObject(obj, nullptr);
 }
 
-void cmServer::WriteResponse(const cmServerResponse& response, const DebugInfo *debug) const
+void cmServer::WriteResponse(const cmServerResponse& response,
+                             const DebugInfo* debug) const
 {
   assert(response.IsComplete());
 
