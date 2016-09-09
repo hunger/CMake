@@ -17,12 +17,14 @@ const char ERROR_TYPE[] = "error";
 const char MESSAGE_TYPE[] = "message";
 const char PROGRESS_TYPE[] = "progress";
 const char REPLY_TYPE[] = "reply";
+const char SIGNAL_TYPE[] = "signal";
 
 const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
 const char COOKIE_KEY[] = "cookie";
 const char ERROR_MESSAGE_KEY[] = "errorMessage";
 const char EXTRA_GENERATOR_KEY[] = "extraGenerator";
 const char GENERATOR_KEY[] = "generator";
+const char NAME_KEY[] = "name";
 const char REPLY_TO_KEY[] = "inReplyTo";
 const char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
 const char TYPE_KEY[] = "type";
