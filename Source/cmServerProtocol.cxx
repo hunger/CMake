@@ -264,6 +264,8 @@ const cmServerResponse cmServerProtocol1_0::Process(
     return this->ProcessCompute(request);
   if (request.Type == CONFIGURE_TYPE)
     return this->ProcessConfigure(request);
+  if (request.Type == FILESYSTEM_WATCHERS_TYPE)
+    return this->ProcessFileSystemWatchers(request);
   if (request.Type == GLOBAL_SETTINGS_TYPE)
     return this->ProcessGlobalSettings(request);
   if (request.Type == SET_GLOBAL_SETTINGS_TYPE)
@@ -892,4 +894,23 @@ cmServerResponse cmServerProtocol1_0::ProcessSetGlobalSettings(
           [cm](bool e) { cm->SetCheckSystemVars(e); });
 
   return request.Reply(Json::Value());
+}
+
+cmServerResponse cmServerProtocol1_0::ProcessFileSystemWatchers(
+  const cmServerRequest& request)
+{
+  const cmFileMonitor* const fm = FileMonitor();
+  Json::Value result = Json::objectValue;
+  Json::Value files = Json::arrayValue;
+  for (const auto& f : fm->WatchedFiles()) {
+    files.append(f);
+  }
+  Json::Value directories = Json::arrayValue;
+  for (const auto& d : fm->WatchedDirectories()) {
+    directories.append(d);
+  }
+  result[WATCHED_FILES_KEY] = files;
+  result[WATCHED_DIRECTORIES_KEY] = directories;
+
+  return request.Reply(result);
 }
