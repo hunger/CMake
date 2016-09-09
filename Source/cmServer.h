@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+class cmFileMonitor;
 class cmServerConnection;
 class cmServerProtocol;
 class cmServerRequest;
@@ -38,6 +39,8 @@ public:
   ~cmServer();
 
   bool Serve(std::string* errorMessage);
+
+  cmFileMonitor* FileMonitor() const;
 
 private:
   void RegisterProtocol(cmServerProtocol* protocol);

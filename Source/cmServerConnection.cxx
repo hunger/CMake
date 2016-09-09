@@ -13,7 +13,8 @@
 
 #include "cmServerConnection.h"
 
-#include <cmServer.h>
+#include "cmFileMonitor.h"
+#include "cmServer.h"
 
 #include <assert.h>
 
@@ -76,10 +77,14 @@ public:
     : Connection(connection)
   {
     Connection->mLoop = uv_default_loop();
+    if (Connection->mLoop)
+      Connection->mFileMonitor = new cmFileMonitor(Connection->mLoop);
   }
 
   ~LoopGuard()
   {
+    if (Connection->mFileMonitor)
+      delete Connection->mFileMonitor;
     uv_loop_close(Connection->mLoop);
     Connection->mLoop = nullptr;
   }
