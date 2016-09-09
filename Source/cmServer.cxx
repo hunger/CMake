@@ -357,9 +357,7 @@ void cmServer::WriteJsonObject(const Json::Value& jsonValue,
   Json::FastWriter writer;
 
   auto beforeJson = std::chrono::high_resolution_clock::now();
-  std::string result = std::string("\n") + std::string(START_MAGIC) +
-    std::string("\n") + writer.write(jsonValue) + std::string(END_MAGIC) +
-    std::string("\n");
+  std::string result = writer.write(jsonValue);
 
   if (debug) {
     Json::Value copy = jsonValue;
@@ -379,6 +377,8 @@ void cmServer::WriteJsonObject(const Json::Value& jsonValue,
       }
 
       copy["zzzDebug"] = stats;
+
+      result = writer.write(copy); // Update result to include debug info
     }
 
     if (!debug->OutputFile.empty()) {
@@ -390,7 +390,10 @@ void cmServer::WriteJsonObject(const Json::Value& jsonValue,
   }
 
   this->Writing = true;
-  write_data(this->OutputStream, result, on_stdout_write);
+  write_data(this->OutputStream,
+             std::string("\n") + std::string(START_MAGIC) + std::string("\n") +
+               result + std::string(END_MAGIC) + std::string("\n"),
+             on_stdout_write);
 }
 
 cmServerProtocol* cmServer::FindMatchingProtocol(
