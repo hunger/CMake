@@ -16,22 +16,12 @@
 #include "cmServer.h"
 #include "cmake.h"
 
+#include "cmServerDictionary.h"
+
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cm_jsoncpp_reader.h"
 #include "cm_jsoncpp_value.h"
 #endif
-
-namespace {
-// Vocabulary:
-
-char BUILD_DIRECTORY_KEY[] = "buildDirectory";
-char COOKIE_KEY[] = "cookie";
-char EXTRA_GENERATOR_KEY[] = "extraGenerator";
-char GENERATOR_KEY[] = "generator";
-char SOURCE_DIRECTORY_KEY[] = "sourceDirectory";
-char TYPE_KEY[] = "type";
-
-} // namespace
 
 cmServerRequest::cmServerRequest(cmServer* server, const std::string& t,
                                  const std::string& c, const Json::Value& d)

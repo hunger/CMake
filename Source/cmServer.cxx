@@ -14,6 +14,7 @@
 #include "cmServer.h"
 
 #include "cmServerConnection.h"
+#include "cmServerDictionary.h"
 #include "cmServerProtocol.h"
 #include "cmSystemTools.h"
 #include "cmVersionMacros.h"
@@ -28,16 +29,6 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-
-const char TYPE_KEY[] = "type";
-const char COOKIE_KEY[] = "cookie";
-const char REPLY_TO_KEY[] = "inReplyTo";
-const char ERROR_MESSAGE_KEY[] = "errorMessage";
-
-const char ERROR_TYPE[] = "error";
-const char REPLY_TYPE[] = "reply";
-const char PROGRESS_TYPE[] = "progress";
-const char MESSAGE_TYPE[] = "message";
 
 const char START_MAGIC[] = "[== CMake Server ==[";
 const char END_MAGIC[] = "]== CMake Server ==]";
