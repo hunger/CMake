@@ -13,6 +13,7 @@
 namespace {
 // Vocabulary:
 
+const char CMAKE_INPUTS_TYPE[] = "cmakeInputs";
 const char CODE_MODEL_TYPE[] = "codemodel";
 const char COMPUTE_TYPE[] = "compute";
 const char CONFIGURE_TYPE[] = "configure";
@@ -26,9 +27,11 @@ const char SIGNAL_TYPE[] = "signal";
 
 const char ARTIFACTS_KEY[] = "artifacts";
 const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+const char BUILD_FILES_KEY[] = "buildFiles";
 const char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
 const char CAPABILITIES_KEY[] = "capabilities";
 const char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
+const char CMAKE_ROOT_DIRECTORY_KEY[] = "cmakeRootDirectory";
 const char COMPILE_FLAGS_KEY[] = "compileFlags";
 const char CONFIGURATIONS_KEY[] = "configurations";
 const char COOKIE_KEY[] = "cookie";
@@ -41,8 +44,10 @@ const char FRAMEWORK_PATH_KEY[] = "frameworkPath";
 const char FULL_NAME_KEY[] = "fullName";
 const char GENERATOR_KEY[] = "generator";
 const char INCLUDE_PATH_KEY[] = "includePath";
+const char IS_CMAKE_KEY[] = "isCMake";
 const char IS_GENERATED_KEY[] = "isGenerated";
 const char IS_SYSTEM_KEY[] = "isSystem";
+const char IS_TEMPORARY_KEY[] = "isTemporary";
 const char LANGUAGE_KEY[] = "language";
 const char LINKER_LANGUAGE_KEY[] = "linkerLanguage";
 const char LINK_FLAGS_KEY[] = "linkFlags";
