@@ -18,6 +18,7 @@ const char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 const char MESSAGE_TYPE[] = "message";
 const char PROGRESS_TYPE[] = "progress";
 const char REPLY_TYPE[] = "reply";
+const char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 const char SIGNAL_TYPE[] = "signal";
 
 const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
