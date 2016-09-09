@@ -782,6 +782,23 @@ add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
 list(APPEND _tools cmake)
 target_link_libraries(cmake CMakeLib)
 
+list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_auto_type CMake_HAVE_CXX_AUTO_TYPE)
+list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_range_for CMake_HAVE_CXX_RANGE_FOR)
+
+if (NOT CMAKE_BOOTSTRAP
+    AND CMake_HAVE_CXX_AUTO_TYPE
+    AND CMake_HAVE_CXX_RANGE_FOR)
+  add_library(CMakeServerLib
+    cmServer.cxx cmServer.h
+    cmServerProtocol.cxx cmServerProtocol.h
+  )
+  target_link_libraries(CMakeServerLib PUBLIC CMakeLib ${CMAKE_LIBUV_LIBRARY})
+  target_include_directories(CMakeServerLib PUBLIC ${CMAKE_LIBUV_INCLUDE_DIR})
+  target_compile_definitions(CMakeServerLib INTERFACE HAVE_SERVER_MODE=1)
+
+  target_link_libraries(cmake CMakeServerLib)
+endif()
+
 # Build CTest executable
 add_executable(ctest ctest.cxx ${MANIFEST_FILE})
 list(APPEND _tools ctest)
