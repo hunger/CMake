@@ -344,6 +344,19 @@ void cmServer::WriteParseError(const std::string& message) const
   this->WriteJsonObject(obj, nullptr);
 }
 
+void cmServer::WriteSignal(const std::string& name,
+                           const Json::Value& data) const
+{
+  assert(data.isObject());
+  Json::Value obj = data;
+  obj[TYPE_KEY] = SIGNAL_TYPE;
+  obj[REPLY_TO_KEY] = "";
+  obj[COOKIE_KEY] = "";
+  obj[NAME_KEY] = name;
+
+  WriteJsonObject(obj, nullptr);
+}
+
 void cmServer::WriteResponse(const cmServerResponse& response,
                              const DebugInfo* debug) const
 {
