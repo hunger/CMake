@@ -79,6 +79,48 @@ static std::vector<std::string> toStringList(const Json::Value& in)
   return result;
 }
 
+static void getCMakeInputs(const cmGlobalGenerator* gg,
+                           const std::string& sourceDir,
+                           const std::string& buildDir,
+                           std::vector<std::string>* internalFiles,
+                           std::vector<std::string>* explicitFiles,
+                           std::vector<std::string>* tmpFiles)
+{
+  const std::string cmakeRootDir = cmSystemTools::GetCMakeRoot() + '/';
+  const std::vector<cmMakefile*> makefiles = gg->GetMakefiles();
+  for (auto it = makefiles.begin(); it != makefiles.end(); ++it) {
+    const std::vector<std::string> listFiles = (*it)->GetListFiles();
+
+    for (auto jt = listFiles.begin(); jt != listFiles.end(); ++jt) {
+
+      const std::string startOfFile = jt->substr(0, cmakeRootDir.size());
+      const bool isInternal = (startOfFile == cmakeRootDir);
+      const bool isTemporary = !isInternal && (jt->find(buildDir + '/') == 0);
+
+      std::string toAdd = *jt;
+      if (!sourceDir.empty()) {
+        const std::string& relative =
+          cmSystemTools::RelativePath(sourceDir.c_str(), jt->c_str());
+        if (toAdd.size() > relative.size())
+          toAdd = relative;
+      }
+
+      if (isInternal) {
+        if (internalFiles)
+          internalFiles->push_back(toAdd);
+      } else {
+        if (isTemporary) {
+          if (tmpFiles)
+            tmpFiles->push_back(toAdd);
+        } else {
+          if (explicitFiles)
+            explicitFiles->push_back(toAdd);
+        }
+      }
+    }
+  }
+}
+
 } // namespace
 
 cmServerRequest::cmServerRequest(cmServer* server, const std::string& t,
@@ -426,31 +468,8 @@ cmServerResponse cmServerProtocol1_0::ProcessCMakeInputs(
   std::vector<std::string> internalFiles;
   std::vector<std::string> explicitFiles;
   std::vector<std::string> tmpFiles;
-
-  std::vector<cmMakefile*> makefiles = gg->GetMakefiles();
-  for (auto it = makefiles.begin(); it != makefiles.end(); ++it) {
-    const std::vector<std::string> listFiles = (*it)->GetListFiles();
-
-    for (auto jt = listFiles.begin(); jt != listFiles.end(); ++jt) {
-
-      const bool isInternal = (jt->find(cmakeRootDir + '/') == 0);
-      const bool isTemporary = !isInternal && (jt->find(buildDir + '/') == 0);
-
-      const std::string& relative =
-        cmSystemTools::RelativePath(sourceDir.c_str(), jt->c_str());
-      const std::string toAdd = relative.size() < jt->size() ? relative : *jt;
-
-      if (isInternal) {
-        internalFiles.push_back(toAdd);
-      } else {
-        if (isTemporary) {
-          tmpFiles.push_back(toAdd);
-        } else {
-          explicitFiles.push_back(toAdd);
-        }
-      }
-    }
-  }
+  getCMakeInputs(gg, sourceDir, buildDir, &internalFiles, &explicitFiles,
+                 &tmpFiles);
 
   Json::Value array = Json::arrayValue;
 
@@ -852,6 +871,8 @@ cmServerResponse cmServerProtocol1_0::ProcessConfigure(
   std::string sourceDir = cm->GetHomeDirectory();
   const std::string buildDir = cm->GetHomeOutputDirectory();
 
+  cmGlobalGenerator* gg = cm->GetGlobalGenerator();
+
   if (buildDir.empty()) {
     return request.ReportError(
       "No build directory set via setGlobalSettings.");
@@ -872,8 +893,7 @@ cmServerResponse cmServerProtocol1_0::ProcessConfigure(
     const char* cachedGenerator =
       cm->GetState()->GetInitializedCacheValue("CMAKE_GENERATOR");
     if (cachedGenerator) {
-      cmGlobalGenerator* gen = cm->GetGlobalGenerator();
-      if (gen && gen->GetName() != cachedGenerator) {
+      if (gg && gg->GetName() != cachedGenerator) {
         return request.ReportError("Configured generator does not match with "
                                    "CMAKE_GENERATOR found in cache.");
       }
