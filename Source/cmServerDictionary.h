@@ -13,6 +13,7 @@
 namespace {
 // Vocabulary:
 
+const char COMPUTE_TYPE[] = "compute";
 const char CONFIGURE_TYPE[] = "configure";
 const char ERROR_TYPE[] = "error";
 const char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
