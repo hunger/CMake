@@ -789,6 +789,7 @@ if (NOT CMAKE_BOOTSTRAP
     AND CMake_HAVE_CXX_AUTO_TYPE
     AND CMake_HAVE_CXX_RANGE_FOR)
   add_library(CMakeServerLib
+    cmFileMonitor.cxx cmFileMonitor.h
     cmServer.cxx cmServer.h
     cmServerConnection.cxx cmServerConnection.h
     cmServerProtocol.cxx cmServerProtocol.h
