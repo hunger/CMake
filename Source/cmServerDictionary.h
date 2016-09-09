@@ -13,6 +13,7 @@
 namespace {
 // Vocabulary:
 
+const char CONFIGURE_TYPE[] = "configure";
 const char ERROR_TYPE[] = "error";
 const char GLOBAL_SETTINGS_TYPE[] = "globalSettings";
 const char MESSAGE_TYPE[] = "message";
@@ -22,6 +23,7 @@ const char SET_GLOBAL_SETTINGS_TYPE[] = "setGlobalSettings";
 const char SIGNAL_TYPE[] = "signal";
 
 const char BUILD_DIRECTORY_KEY[] = "buildDirectory";
+const char CACHE_ARGUMENTS_KEY[] = "cacheArguments";
 const char CAPABILITIES_KEY[] = "capabilities";
 const char CHECK_SYSTEM_VARS_KEY[] = "checkSystemVars";
 const char COOKIE_KEY[] = "cookie";
