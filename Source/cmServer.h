@@ -60,10 +60,12 @@ private:
                      int max, const std::string& message) const;
   void WriteMessage(const cmServerRequest& request, const std::string& message,
                     const std::string& title) const;
-  void WriteResponse(const cmServerResponse& response, const DebugInfo *debug) const;
+  void WriteResponse(const cmServerResponse& response,
+                     const DebugInfo* debug) const;
   void WriteParseError(const std::string& message) const;
 
-  void WriteJsonObject(Json::Value const& jsonValue, const DebugInfo *debug) const;
+  void WriteJsonObject(Json::Value const& jsonValue,
+                       const DebugInfo* debug) const;
 
   static cmServerProtocol* FindMatchingProtocol(
     const std::vector<cmServerProtocol*>& protocols, int major, int minor);
@@ -93,6 +95,7 @@ private:
 
   mutable bool Writing = false;
 
-  friend class cmServerRequest;
   friend class cmServerConnection;
+  friend class cmServerProtocol;
+  friend class cmServerRequest;
 };
