@@ -49,7 +49,10 @@ Operation
 Start :manual:`cmake(1)` in the server command mode, supplying the path to
 the build directory to process::
 
-  cmake -E server
+  cmake -E server (--debug|--pipe <NAMED_PIPE>)
+
+The server will communicate using stdin/stdout (with the --debug parameter)
+or using a named pipe (with the --pipe <NAMED_PIPE> parameter).
 
 The server will start up and reply with an hello message on stdout::
   [== CMake Server ==[
