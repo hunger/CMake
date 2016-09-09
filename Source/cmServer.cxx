@@ -23,6 +23,11 @@
 #include "cm_jsoncpp_value.h"
 #endif
 
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <memory>
+
 const char TYPE_KEY[] = "type";
 const char COOKIE_KEY[] = "cookie";
 const char REPLY_TO_KEY[] = "inReplyTo";
@@ -87,6 +92,20 @@ void read_stdin(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     free(buf->base);
 }
 
+class cmServer::DebugInfo
+{
+public:
+  DebugInfo()
+    : StartTime(std::chrono::high_resolution_clock::now())
+  {
+  }
+
+  bool PrintStatistics = false;
+
+  std::string OutputFile;
+  std::chrono::high_resolution_clock::time_point StartTime;
+};
+
 cmServer::cmServer(bool supportExperimental)
   : SupportExperimental(supportExperimental)
 {
@@ -126,6 +145,14 @@ void cmServer::PopOne()
     return;
   }
 
+  std::unique_ptr<DebugInfo> debug;
+  Json::Value debugValue = value["debug"];
+  if (!debugValue.isNull()) {
+    debug = std::make_unique<DebugInfo>();
+    debug->OutputFile = debugValue["dumpToFile"].asString();
+    debug->PrintStatistics = debugValue["showStats"].asBool();
+  }
+
   const cmServerRequest request(this, value[TYPE_KEY].asString(),
                                 value[COOKIE_KEY].asString(), value);
 
@@ -141,9 +168,9 @@ void cmServer::PopOne()
   if (this->Protocol) {
     this->Protocol->CMakeInstance()->SetProgressCallback(
       reportProgress, const_cast<cmServerRequest*>(&request));
-    this->WriteResponse(this->Protocol->Process(request));
+    this->WriteResponse(this->Protocol->Process(request), debug.get());
   } else {
-    this->WriteResponse(this->SetProtocolVersion(request));
+    this->WriteResponse(this->SetProtocolVersion(request), debug.get());
   }
 }
 
@@ -324,16 +351,48 @@ bool cmServer::Serve()
   return true;
 }
 
-void cmServer::WriteJsonObject(const Json::Value& jsonValue) const
+void cmServer::WriteJsonObject(const Json::Value& jsonValue, const DebugInfo *debug) const
 {
   Json::FastWriter writer;
 
-  std::string result = std::string("\n") + std::string(START_MAGIC) +
-    std::string("\n") + writer.write(jsonValue) + std::string(END_MAGIC) +
-    std::string("\n");
+  auto beforeJson = std::chrono::high_resolution_clock::now();
+  std::string result = writer.write(jsonValue);
+
+  if (debug) {
+    Json::Value copy = jsonValue;
+    if (debug->PrintStatistics) {
+      Json::Value stats = Json::objectValue;
+      auto endTime = std::chrono::high_resolution_clock::now();
+
+      auto serializationDiff = endTime - beforeJson;
+      stats["jsonSerialization"] =
+        std::chrono::duration<double, std::milli>(serializationDiff).count();
+      auto totalDiff = endTime - debug->StartTime;
+      stats["totalTime"] =
+        std::chrono::duration<double, std::milli>(totalDiff).count();
+      stats["size"] = static_cast<int>(result.size());
+      if (!debug->OutputFile.empty()) {
+        stats["dumpFile"] = debug->OutputFile;
+      }
+
+      copy["zzzDebug"] = stats;
+
+      result = writer.write(copy); // Update result to include debug info
+    }
+
+    if (!debug->OutputFile.empty()) {
+      std::ofstream myfile;
+      myfile.open(debug->OutputFile);
+      myfile << result;
+      myfile.close();
+    }
+  }
 
   this->Writing = true;
-  write_data(this->OutputStream, result, on_stdout_write);
+  write_data(this->OutputStream,
+             std::string("\n") + std::string(START_MAGIC) + std::string("\n") +
+               result + std::string(END_MAGIC) + std::string("\n"),
+             on_stdout_write);
 }
 
 cmServerProtocol* cmServer::FindMatchingProtocol(
@@ -401,7 +460,7 @@ void cmServer::WriteParseError(const std::string& message) const
   this->WriteJsonObject(obj, nullptr);
 }
 
-void cmServer::WriteResponse(const cmServerResponse& response) const
+void cmServer::WriteResponse(const cmServerResponse& response, const DebugInfo *debug) const
 {
   assert(response.IsComplete());
 
@@ -413,5 +472,5 @@ void cmServer::WriteResponse(const cmServerResponse& response) const
     obj[ERROR_MESSAGE_KEY] = response.ErrorMessage();
   }
 
-  this->WriteJsonObject(obj);
+  this->WriteJsonObject(obj, debug);
 }
