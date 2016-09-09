@@ -145,6 +145,8 @@ public:
   const char* GetHomeOutputDirectory() const;
   //@}
 
+  static std::string FindCacheFile(const std::string &binaryDir);
+
   /**
    * Handle a command line invocation of cmake.
    */

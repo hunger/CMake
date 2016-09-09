@@ -261,6 +261,45 @@ bool cmServerProtocol1_0::DoActivate(const cmServerRequest& request,
   const std::string extraGenerator =
     request.Data[EXTRA_GENERATOR_KEY].asString();
 
+  if (buildDirectory.empty()) {
+      if (errorMessage)
+        *errorMessage = std::string("\"") + BUILD_DIRECTORY_KEY + "\" is missing.";
+      return false;
+  }
+  if (!sourceDirectory.empty() && !cmSystemTools::FileIsDirectory(sourceDirectory)) {
+      if (errorMessage)
+        *errorMessage = std::string("\"") + SOURCE_DIRECTORY_KEY + "\" is not a directory.";
+      return false;
+  }
+  if (cmSystemTools::PathExists(buildDirectory)) {
+      if (!cmSystemTools::FileIsDirectory(buildDirectory)) {
+          if (errorMessage)
+              *errorMessage = std::string("\"") + BUILD_DIRECTORY_KEY + "\" exists but is not a directory.";
+          return false;
+      }
+      const std::string cachePath = cmake::FindCacheFile(buildDirectory);
+      if (!cm->LoadCache(cachePath)) {
+
+      }
+  }
+
+  cmake *cm = CMakeInstance();
+
+  if (cmSystemTools::FileIsDirectory(buildDirectory)) {
+  }
+#if 0
+  std::string cachePath = FindCacheFile(dir);
+    std::cerr << "Error: could not load cache\n";
+    return 1;
+  }
+  const char* cachedGenerator =
+    this->State->GetCacheEntryValue("CMAKE_GENERATOR");
+  if (!cachedGenerator) {
+    std::cerr << "Error: could not find CMAKE_GENERATOR in Cache\n";
+    return 1;
+  }
+#endif
+
   const std::string fullGeneratorName =
     cmExternalMakefileProjectGenerator::CreateFullGeneratorName(
       generator, extraGenerator);
